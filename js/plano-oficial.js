@@ -1,5 +1,5 @@
 /*
- * PLANO OFICIAL DE SALA SCALA (guardado el 31/10/2026)
+ * PLANO OFICIAL DE SALA SCALA (versión definitiva, 31/10/2026 18:53)
  * ----------------------------------------------------
  * Es la distribución de mesas que se carga la primera vez que se abre la
  * aplicación, o cuando se pulsa "Restaurar plano oficial".
@@ -89,24 +89,25 @@ const PLANO_OFICIAL = {
     ["m6", 32.25, 23, "v"],
     ["m6", 38, 12.75, "h"],
     ["m6", 38, 15, "h"],
-    ["m6", 38, 17.25, "h"]
+    ["m6", 38, 17.25, "h"],
+    ["m4", 5.75, 10.75, "h"]
   ],
   // Planta alta (anfiteatro). La barra corrida y sus 62 sillas se dibujan aparte, en app.js.
   p2: [
     ["sil4", 14.1, 21.75, "h"],
-    ["sil4", 16.6, 21.75, "h"],
-    ["sil4", 19.1, 21.75, "h"],
+    ["sil4", 16, 21.75, "h"],
+    ["sil4", 19.75, 21.75, "h"],
     ["sil4", 21.6, 21.75, "h"],
-    ["sil4", 24.1, 21.75, "h"],
-    ["sil4", 26.6, 21.75, "h"],
+    ["sil4", 23.5, 21.75, "h"],
+    ["sil4", 27.25, 21.75, "h"],
     ["sil4", 29.1, 21.75, "h"],
     ["m4u", 33, 20.5, "h"],
     ["m4u", 10.75, 20.5, "h"],
-    ["m6", 3.25, 13.25, "h"],
-    ["m6", 40, 13.25, "h"],
-    ["m6", 3.25, 15.25, "h"],
-    ["m6", 3.25, 17.25, "h"],
-    ["m6", 40, 15, "h"],
-    ["m6", 40, 16.75, "h"]
+    ["m4", 40.25, 13.25, "h"],
+    ["m4", 40.25, 15.25, "h"],
+    ["m4", 40.25, 17.25, "h"],
+    ["m4", 3.75, 13.25, "h"],
+    ["m4", 3.75, 15.25, "h"],
+    ["m4", 3.75, 17.25, "h"]
   ],
 };
