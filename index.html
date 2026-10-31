@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sitting · Sala Scala</title>
+    <link rel="stylesheet" href="css/estilos.css" />
+  </head>
+  <body>
+    <main>
+      <div class="bar" id="tabs">
+        <button id="tab-base" onclick="switchFloor('base')">Planta baja</button
+        ><button id="tab-p2" onclick="switchFloor('p2')">Planta alta</button>
+      </div>
+      <h1 id="ttl">Plano planta baja · distribución base</h1>
+      <p class="sub">
+        Cada cambio se guarda solo en este navegador. Usa «Exportar plano» para tener una copia. El plano
+        muestra la zona donde el jefe de sala puede mover mesas. Cuadrícula de 1 m, líneas marcadas cada 5 m.
+      </p>
+      <div class="bar">
+        <button onclick="addT('m8')">+ Mesa 8</button>
+        <button onclick="addT('m6')">+ Mesa 6</button>
+        <button onclick="addT('m4')">+ Mesa 4</button>
+        <button onclick="addT('r60')">+ Redonda</button>
+        <button onclick="addT('sil4')">+ Sillón 4</button>
+        <button onclick="addT('vip')">+ VIP 4</button>
+        <button onclick="addT('esc')">+ Escalera 0,60</button>
+        <button onclick="addT('esc2')">+ Escalera 1,00</button>
+        <span class="sp"></span>
+        <button onclick="toggleLock()" id="lockbtn">🔒 Plano bloqueado</button>
+        <button onclick="undo()" id="bu">Deshacer</button>
+        <button onclick="lado()">Un lado / dos lados</button>
+        <button onclick="rot()">Girar</button>
+        <button onclick="dup()">Duplicar</button>
+        <button onclick="del()">Borrar</button>
+        <span class="sp"></span>
+        <button onclick="exportarPlano()">Exportar plano</button>
+        <label class="filebtn" style="font-size: 14px"
+          >Importar plano<input type="file" id="impfile" accept=".json" hidden
+        /></label>
+        <button id="restbtn" onclick="restaurarOficial()">Restaurar plano oficial</button>
+      </div>
+      <div class="bar">
+        <button onclick="zoomBtn(1 / 1.4)" aria-label="Alejar">−</button>
+        <span id="zl" style="min-width: 48px; text-align: center; font-size: 14px">100%</span>
+        <button onclick="zoomBtn(1.4)" aria-label="Acercar">+</button>
+        <button onclick="zoomFit()">Ver todo</button>
+        <span style="font-size: 13px; color: var(--muted)"
+          >Pellizca con dos dedos para hacer zoom · arrastra el fondo para moverte</span
+        >
+      </div>
+      <svg id="plan" viewBox="0 0 680 540">
+        <g id="grid"></g>
+        <defs>
+          <clipPath id="cz"><rect id="czr" /></clipPath>
+        </defs>
+        <g id="fixed" clip-path="url(#cz)"></g>
+        <g id="floorfx" clip-path="url(#cz)"></g>
+        <g id="tl"></g>
+        <g id="sitfx" style="pointer-events: none"></g>
+      </svg>
+      <div class="info"><span id="st">Cargando…</span><span id="cnt"></span><span id="sel"></span></div>
+      <section id="sit">
+        <h2>Sitting automático</h2>
+        <p class="sub">
+          Carga el Excel de reservas del día. El sistema propone dónde se sienta cada reserva según las reglas
+          de cada categoría. Los datos solo se leen en este navegador: no se guardan en ningún sitio.
+        </p>
+        <div class="bar">
+          <label class="filebtn"
+            >Cargar Excel de reservas<input type="file" id="sitfile" accept=".xlsx,.xls" hidden /></label
+          ><button id="sitclear" onclick="clearSitting()" disabled>Quitar sitting</button>
+          <span class="leg"
+            ><span class="dot" style="background: #1d9e75"></span>VIP
+            <span class="dot" style="background: #d4537e"></span>Premium
+            <span class="dot" style="background: #378add"></span>General
+            <span class="dot" style="background: #ef9f27"></span>Show
+            <span class="dot" style="background: transparent; border: 2px solid #e24b4a"></span>Reserva con
+            PMR · ⚠ alergias o intolerancias · 🎂 cumpleaños · toca una mesa para ver el detalle</span
+          >
+        </div>
+        <div id="sitmsg" class="sub">Sin sitting cargado.</div>
+        <div id="sitres"></div>
+      </section>
+    </main>
+    <!-- Lector de Excel (SheetJS) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- Plano oficial (datos) y aplicación -->
+    <script src="js/plano-oficial.js"></script>
+    <script src="js/app.js"></script>
+  </body>
+</html>
