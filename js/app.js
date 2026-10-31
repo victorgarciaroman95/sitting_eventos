@@ -39,6 +39,7 @@ const FL = {
   },
 };
 let FLOOR = "base";
+const BARRA_SILLAS = 50; // sillas de la barra del anfiteatro, repartidas a lo largo de toda la barra
 // Tipos de mesa: medidas en metros (w = largo, h = fondo) y plazas (cap).
 const T = {
   vip: { w: 2.29, h: 1.6, cap: 4, n: "VIP" },
@@ -847,8 +848,9 @@ function drawFloorFx() {
     { len: Fo - ro - RT, f: (u) => ({ x: Ro, y: Fo - ro - u, nx: 1, ny: 0 }) },
   ];
   const tot = segs.reduce((a, q) => a + q.len, 0),
-    n = Math.floor((tot + gap) / (cw + gap)),
-    st0 = (tot - (n * cw + (n - 1) * gap)) / 2;
+    n = BARRA_SILLAS,
+    gap2 = (tot - n * cw) / (n - 1),
+    st0 = 0;
   function at(sd) {
     for (const q of segs) {
       if (sd <= q.len) return q.f(sd);
@@ -959,11 +961,12 @@ function barraSeats() {
     { len: Fo - ro - RT, f: (u) => ({ x: Ro, y: Fo - ro - u, nx: 1, ny: 0 }) },
   ];
   const tot = segs.reduce((a, q) => a + q.len, 0),
-    n = Math.floor((tot + gap) / (cw + gap)),
-    st0 = (tot - (n * cw + (n - 1) * gap)) / 2,
+    n = BARRA_SILLAS,
+    gap2 = (tot - n * cw) / (n - 1),
+    st0 = 0,
     out = [];
   for (let i = 0; i < n; i++) {
-    let sd = st0 + cw / 2 + i * (cw + gap),
+    let sd = st0 + cw / 2 + i * (cw + gap2),
       k = 0;
     while (k < segs.length - 1 && sd > segs[k].len) {
       sd -= segs[k].len;

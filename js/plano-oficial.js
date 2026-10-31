@@ -92,7 +92,7 @@ const PLANO_OFICIAL = {
     ["m6", 38, 17.25, "h"],
     ["m4", 5.75, 10.75, "h"]
   ],
-  // Planta alta (anfiteatro). La barra corrida y sus 62 sillas se dibujan aparte, en app.js.
+  // Planta alta (anfiteatro). La barra corrida y sus 50 sillas se dibujan aparte, en app.js.
   p2: [
     ["sil4", 14.1, 21.75, "h"],
     ["sil4", 16, 21.75, "h"],

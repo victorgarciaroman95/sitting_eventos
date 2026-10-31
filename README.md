@@ -71,7 +71,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
   - las parejas pasan a las mesas de 2 de los muros cuando lo demás está lleno;
   - las personas solas, a las mesas de 2;
   - solo cuando toda la planta baja está llena, suben a la barra.
-- **Barra del anfiteatro** (62 sillas, zona PMR, cada PMR ocupa 2 sillas):
+- **Barra del anfiteatro** (50 sillas repartidas a lo largo de toda la barra, zona PMR, cada PMR ocupa 2 sillas):
   - General con PMR, totalmente centrada; después Show con PMR a su lado;
   - luego el resto de General y, alrededor, el resto de Show;
   - las personas solas se agrupan en un mismo lado;
@@ -88,7 +88,7 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 | La distribución oficial de mesas | `js/plano-oficial.js` (lo más fácil: colócala en la app, pulsa «Exportar plano» y copia el contenido) |
 | Medidas o plazas de un tipo de mesa | `js/app.js`, objeto `T` (busca «Tipos de mesa») |
 | Escenario, pasarela, pasillos y muros | `js/app.js`, llamadas a `zone(...)` y `wall(...)` |
-| Barra del anfiteatro (sillas, separación) | `js/app.js`, funciones `barraSeats` y `drawFloorFx` |
+| Número de sillas de la barra | `js/app.js`, constante `BARRA_SILLAS` (ahora 50) |
 | Reglas del sitting | `js/app.js`, función `runSitting` (cada paso está comentado) |
 | Colores de las categorías | `js/app.js`, constante `CATC` |
 
