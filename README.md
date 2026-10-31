@@ -76,6 +76,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
   - luego el resto de General y, alrededor, el resto de Show;
   - las personas solas se agrupan en un mismo lado;
   - siempre queda una silla libre entre reservas.
+- **Sillones de la planta alta:** 7 sillones de 2 personas, cada uno con su mesa redonda delante. La visibilidad es muy mala, así que son la última opción para General y Show, cuando ya no queda sitio en la barra.
 - **Dentro de cada mesa:** se ocupa primero el lado con visión directa al escenario y, dentro de él, los asientos más cercanos.
 
 Las reglas completas, con lo pendiente de confirmar, están en los documentos del proyecto de Claude: «entradas-y-reglas-sitting» y «mapa-sala-scala».
@@ -94,5 +95,5 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 ## Pendiente
 
 - Numeración real de las mesas de planta baja. Por ahora se usan V1–V15 para los VIP y M1… para el resto de mesas.
-- Qué entradas van en las mesas de la planta alta fuera de la barra.
-- Capacidad y medida de los sillones de 4.
+- Qué entradas van en las mesas de 6 y de 2 de la planta alta.
+- Medida real de los sillones (ahora 1,80 × 0,80 m, provisional) y su posición exacta.

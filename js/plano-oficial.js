@@ -6,7 +6,7 @@
  *
  * Cada elemento es: [tipo, x en metros, y en metros, orientación]
  *   tipo: vip, m8 (mesa de 8), m6, m4, m4u (mesa de 4 usada por un lado = mesa de 2),
- *         r60 (mesa redonda), sil4 (sillón de 4 con mesa redonda), esc / esc2 (escaleras),
+ *         r60 (mesa redonda), sil4 (sillón de 2 personas con mesa redonda), esc / esc2 (escaleras),
  *         pt (pasillo de las 300)
  *   x, y: posición de la esquina superior izquierda. El origen (0,0) es la esquina
  *         izquierda del fondo del escenario; la x crece hacia la derecha y la y hacia el público.
@@ -93,8 +93,13 @@ const PLANO_OFICIAL = {
   ],
   // Planta alta (anfiteatro). La barra corrida y sus 62 sillas se dibujan aparte, en app.js.
   p2: [
-    ["sil4", 23, 21.75, "h"],
-    ["sil4", 20.5, 21.75, "h"],
+    ["sil4", 14.1, 21.75, "h"],
+    ["sil4", 16.6, 21.75, "h"],
+    ["sil4", 19.1, 21.75, "h"],
+    ["sil4", 21.6, 21.75, "h"],
+    ["sil4", 24.1, 21.75, "h"],
+    ["sil4", 26.6, 21.75, "h"],
+    ["sil4", 29.1, 21.75, "h"],
     ["m4u", 33, 20.5, "h"],
     ["m4u", 10.75, 20.5, "h"],
     ["m6", 3.25, 13.25, "h"],

@@ -14,6 +14,7 @@
  * Unidades: todas las posiciones y medidas de las mesas van en METROS. Las funciones X() e Y()
  * las convierten a píxeles del dibujo.
  */
+
 const LX0 = 1.75,
   LX1 = 43.5,
   LY1 = 27.32,
@@ -46,13 +47,7 @@ const T = {
   m4: { w: 1.1, h: 0.6, cap: 4, n: "Mesa 4" },
   m4u: { w: 1.1, h: 0.6, cap: 2, n: "Mesa 4 usada por un lado" },
   r60: { w: 0.6, h: 0.6, cap: 0, n: "Mesa redonda Ø 0,60 m", round: true },
-  sil4: {
-    w: 1.8,
-    h: 1.6,
-    cap: 4,
-    n: "Sillón 4 con mesa redonda delante (sillón provisional 1,80 × 0,80 m)",
-    sofa: true,
-  },
+  sil4: { w: 1.8, h: 1.6, cap: 2, n: "Sillón 2 con mesa redonda delante", sofa: true },
   esc: { w: 0.6, h: 1.2, cap: 0, n: "Escalera 0,60 × 1,20 m (0,80 m de alto)" },
   pt: { w: LX1 - LX0, h: 2.32, cap: 0, n: "Pasillo de las 300" },
   esc2: { w: 1.0, h: 1.2, cap: 0, n: "Escalera 1,00 × 1,20 m (0,80 m de alto)" },
@@ -386,7 +381,7 @@ function render() {
           fill: esc || t.type === "pt" ? "var(--acc)" : "var(--txt)",
         },
         g,
-        SIT && FLOOR === "base" && SIT.tmap[keyOf(t.type, t.x, t.y)]
+        SIT && SIT.tmap[keyOf(t.type, t.x, t.y)] && SIT.tmap[keyOf(t.type, t.x, t.y)].floor === FLOOR
           ? ""
           : t.type === "pt"
             ? "Pasillo de las 300"
@@ -1130,6 +1125,33 @@ async function runSitting(resv) {
   [...vips].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "V" + ++n));
   n = 0;
   [...mesas].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "M" + ++n));
+  // Sillones de la planta alta (2 personas con mesa redonda): última opción para General y Show
+  const sill = [];
+  (await floorData("p2")).forEach((d) => {
+    if (d[0] !== "sil4") return;
+    const r = d[3] === "v",
+      w = r ? T.sil4.h : T.sil4.w,
+      h = r ? T.sil4.w : T.sil4.h,
+      cx = d[1] + w / 2,
+      cy = d[2] + h / 2;
+    sill.push({
+      key: keyOf("sil4", d[1], d[2]),
+      floor: "p2",
+      type: "sil4",
+      x: d[1],
+      y: d[2],
+      w,
+      h,
+      cap: T.sil4.cap,
+      cx,
+      cy,
+      unit: null,
+      dist: Math.hypot(cx - 22.5, cy - 12.3),
+    });
+  });
+  sill.sort((a, b) => a.x - b.x).forEach((t, k) => (t.id = "S" + (k + 1)));
+  tabs.forEach((t) => (t.floor = "base"));
+  tabs.push(...sill);
   // VIP blocks: chains of physically touching VIPs
   const blocks = [];
   const used = new Set();
@@ -1425,11 +1447,15 @@ async function runSitting(resv) {
         prevSingleCat = u.cat;
         sSide = lastSide;
       }
+      if (!ok && placeOnTables(u, sill)) {
+        u.where[u.where.length - 1] += " · planta alta";
+        return;
+      }
       if (!ok) {
         warn.push(
           (u.cat === "Show"
-            ? "Show sin hueco en la barra: "
-            : "General sin hueco (ni en planta baja ni en la barra): ") +
+            ? "Show sin hueco en la barra ni en los sillones: "
+            : "General sin hueco (ni en planta baja, ni en la barra, ni en los sillones): ") +
             u.name +
             " (" +
             u.pax +
@@ -1527,9 +1553,9 @@ function sitOverlay() {
   if (!g) return;
   g.innerHTML = "";
   if (!SIT) return;
-  if (FLOOR === "base") {
+  {
     const bdone = new Set();
-    for (const t of Object.values(SIT.tmap)) {
+    for (const t of Object.values(SIT.tmap).filter((t) => t.floor === FLOOR)) {
       const c = CATC[t.unit.cat] || "#888";
       el(
         "rect",
@@ -1770,6 +1796,19 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
 const STAGE = { x: 22.5, y: 12.3 };
 // Asientos de una mesa ordenados por prioridad: primero el lado con visión al escenario y los más cercanos.
 function seatSlots(t) {
+  if (T[t.type].sofa) {
+    const sd = 0.8,
+      td = 0.6,
+      gp = 0.2,
+      rot = t.w < t.h;
+    return [0.25, 0.75]
+      .map((f) =>
+        rot
+          ? { x: t.x + td + gp + sd / 2, y: t.y + t.h * f }
+          : { x: t.x + t.w * f, y: t.y + td + gp + sd / 2 },
+      )
+      .map((q) => ({ ...q, score: Math.hypot(q.x - STAGE.x, q.y - STAGE.y) }));
+  }
   const out = [],
     off = 0.2,
     long = t.w >= t.h,
@@ -1812,7 +1851,7 @@ function seatSlots(t) {
 function drawDots(g) {
   if (!SIT) return;
   const byU = new Map();
-  for (const t of Object.values(SIT.tmap)) {
+  for (const t of Object.values(SIT.tmap).filter((t) => t.floor === FLOOR)) {
     if (!byU.has(t.unit)) byU.set(t.unit, []);
     byU.get(t.unit).push(t);
   }
@@ -1870,15 +1909,17 @@ function sitLocked() {
 // Mesa que hay en un punto del plano.
 function tableAt(p) {
   return SIT.tabs.find(
-    (t) => p.x >= t.x - 0.25 && p.x <= t.x + t.w + 0.25 && p.y >= t.y - 0.25 && p.y <= t.y + t.h + 0.25,
+    (t) =>
+      t.floor === FLOOR &&
+      p.x >= t.x - 0.25 &&
+      p.x <= t.x + t.w + 0.25 &&
+      p.y >= t.y - 0.25 &&
+      p.y <= t.y + t.h + 0.25,
   );
 }
 // Con sitting cargado: al tocar una mesa ocupada empieza a mover su reserva.
 function sitDown(t, e) {
-  if (FLOOR !== "base") {
-    return;
-  }
-  const st = SIT.tabs.find((x) => x.key === keyOf(t.type, t.x, t.y));
+  const st = SIT.tabs.find((x) => x.floor === FLOOR && x.key === keyOf(t.type, t.x, t.y));
   if (!st) return;
   if (pendingUnit) {
     placeUnit(pendingUnit, st);
@@ -1930,6 +1971,7 @@ function sitMove(e) {
 }
 // ¿Puede ir esta reserva a esta mesa? (VIP solo a VIP, Premium solo a mesas de 8, General a todo menos VIP).
 function okFor(u, t) {
+  if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
   if (u.cat === "VIP") return t.type === "vip";
   if (u.cat === "Premium") return t.type === "m8";
   if (u.cat === "General") return t.type !== "vip";
