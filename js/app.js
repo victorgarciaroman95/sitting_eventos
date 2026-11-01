@@ -1902,14 +1902,32 @@ function seatSlots(t) {
       out.push({ x: ax + (bx - ax) * f + nx * off, y: ay + (by - ay) * f + ny * off, nx, ny });
     }
   }
+  // VIP: 2 personas en la parte de atrás (la más alejada del escenario, de cara a él) y 1 en cada lado corto; primero la parte de atrás
   if (ty === "vip") {
-    if (long) side(t.x, t.y + t.h, t.x + t.w, t.y + t.h, 0, -1.6, 4);
-    else if (t.cx < STAGE.x) side(t.x, t.y, t.x, t.y + t.h, -0 + 1.6, 0, 4);
-    else side(t.x + t.w, t.y, t.x + t.w, t.y + t.h, -1.6, 0, 4);
-    out.forEach((s) => {
-      s.x += 0;
-    });
-    return out.map((s) => ({ x: s.x, y: s.y, score: -Math.hypot(s.x - STAGE.x, s.y - STAGE.y) }));
+    const o = 0.35,
+      sd = [];
+    if (long) {
+      const by = t.y + t.h - o;
+      sd.push(
+        { x: t.x + t.w * 0.3, y: by, b: 1 },
+        { x: t.x + t.w * 0.7, y: by, b: 1 },
+        { x: t.x + o, y: t.cy, b: 0 },
+        { x: t.x + t.w - o, y: t.cy, b: 0 },
+      );
+    } else {
+      const bx = t.cx < STAGE.x ? t.x + o : t.x + t.w - o;
+      sd.push(
+        { x: bx, y: t.y + t.h * 0.3, b: 1 },
+        { x: bx, y: t.y + t.h * 0.7, b: 1 },
+        { x: t.cx, y: t.y + o, b: 0 },
+        { x: t.cx, y: t.y + t.h - o, b: 0 },
+      );
+    }
+    return sd.map((q) => ({
+      x: q.x,
+      y: q.y,
+      score: (q.b ? 0 : 1000) - Math.hypot(q.x - STAGE.x, q.y - STAGE.y),
+    }));
   }
   const per = Math.max(1, Math.round(T[ty].cap / 2));
   if (long) {
