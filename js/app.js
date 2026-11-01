@@ -912,7 +912,11 @@ function switchFloor(f) {
 loadFloor(location.hash === "#planta-alta" ? "p2" : "base");
 /* ===== Sitting automático ===== */
 const CATC = { VIP: "#1D9E75", Premium: "#D4537E", General: "#378ADD", Show: "#EF9F27" };
-const PMRC = "#E24B4A";
+const PMRC = "#E24B4A",
+  INVC = "#FFC800";
+function isInv(u) {
+  return !!(u && (u.staff || u.gest));
+}
 var SIT = null;
 // Calcula las 62 sillas de la barra del anfiteatro (0,50 m de ancho, 0,10 m de separación), numeradas de izquierda a derecha.
 function barraSeats() {
@@ -1969,11 +1973,26 @@ function sitOverlay() {
           rx: 3,
           fill: c,
           "fill-opacity": 0.55,
-          stroke: t.unit.pmr ? PMRC : c,
-          "stroke-width": t.unit.pmr ? 2.5 : 1.5,
+          stroke: t.unit.pmr ? PMRC : isInv(t.unit) ? INVC : c,
+          "stroke-width": t.unit.pmr || isInv(t.unit) ? 2.8 : 1.5,
         },
         g,
       );
+      if (t.unit.pmr && isInv(t.unit))
+        el(
+          "rect",
+          {
+            x: X(t.x) + 2.6,
+            y: Y(t.y) + 2.6,
+            width: t.w * S - 5.2,
+            height: t.h * S - 5.2,
+            rx: 2,
+            fill: "none",
+            stroke: INVC,
+            "stroke-width": 2,
+          },
+          g,
+        );
       const nm = t.unit.res[0].nom.split(/[ ,]/)[0].slice(0, 9);
       el(
         "text",
@@ -2078,8 +2097,8 @@ function sitOverlay() {
           rx: 2,
           fill: s.unit ? c : "var(--card)",
           "fill-opacity": s.unit ? 0.85 : 1,
-          stroke: s.unit && s.unit.pmr ? PMRC : "var(--muted)",
-          "stroke-width": s.unit && s.unit.pmr ? 1.8 : 0.6,
+          stroke: s.unit && s.unit.pmr ? PMRC : isInv(s.unit) ? INVC : "var(--muted)",
+          "stroke-width": s.unit && (s.unit.pmr || isInv(s.unit)) ? 1.8 : 0.6,
           transform: "translate(" + X(s.x) + " " + Y(s.y) + ") rotate(" + s.ang + ")",
         },
         g,
@@ -2302,8 +2321,8 @@ function drawShared(g, t) {
         rx: 2,
         fill: c,
         "fill-opacity": 0.55,
-        stroke: u.pmr ? PMRC : c,
-        "stroke-width": u.pmr ? 2.2 : 1.3,
+        stroke: u.pmr ? PMRC : isInv(u) ? INVC : c,
+        "stroke-width": u.pmr || isInv(u) ? 2.4 : 1.3,
       },
       g,
     );
