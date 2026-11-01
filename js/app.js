@@ -911,7 +911,7 @@ function switchFloor(f) {
 }
 loadFloor(location.hash === "#planta-alta" ? "p2" : "base");
 /* ===== Sitting automático ===== */
-const CATC = { VIP: "#1D9E75", Premium: "#D4537E", General: "#378ADD", Show: "#EF9F27" };
+const CATC = { VIP: "#2E7D32", Premium: "#8E44AD", General: "#2F7FD8", Show: "#0E9AA7" };
 const PMRC = "#E24B4A",
   INVC = "#FFC800";
 function isInv(u) {
