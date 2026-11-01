@@ -1890,7 +1890,7 @@ function seatSlots(t) {
           ? { x: t.x + td + gp + sd / 2, y: t.y + t.h * f }
           : { x: t.x + t.w * f, y: t.y + td + gp + sd / 2 },
       )
-      .map((q) => ({ ...q, score: Math.hypot(q.x - STAGE.x, q.y - STAGE.y) }));
+      .map((q) => ({ ...q, score: -Math.hypot(q.x - STAGE.x, q.y - STAGE.y) }));
   }
   const out = [],
     off = 0.2,
@@ -1909,7 +1909,7 @@ function seatSlots(t) {
     out.forEach((s) => {
       s.x += 0;
     });
-    return out.map((s) => ({ x: s.x, y: s.y, score: Math.hypot(s.x - STAGE.x, s.y - STAGE.y) }));
+    return out.map((s) => ({ x: s.x, y: s.y, score: -Math.hypot(s.x - STAGE.x, s.y - STAGE.y) }));
   }
   const per = Math.max(1, Math.round(T[ty].cap / 2));
   if (long) {
@@ -1927,7 +1927,7 @@ function seatSlots(t) {
   return out.map((s) => ({
     x: s.x,
     y: s.y,
-    score: (pref(s) ? 0 : 1000) + Math.hypot(STAGE.x - s.x, STAGE.y - s.y),
+    score: (pref(s) ? 0 : 1000) - Math.hypot(STAGE.x - s.x, STAGE.y - s.y),
   }));
 }
 // Dibuja un punto verde por persona en los mejores asientos de cada mesa.
