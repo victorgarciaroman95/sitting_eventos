@@ -77,7 +77,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
   - las personas solas se agrupan en un mismo lado;
   - siempre queda una silla libre entre reservas.
 - **Sillones de la planta alta:** 7 sillones de 2 personas, cada uno con su mesa redonda delante. La visibilidad es muy mala, así que son la última opción para General y Show, cuando ya no queda sitio en la barra.
-- **Dentro de cada mesa:** se ocupa primero el lado con visión directa al escenario y, dentro de él, los asientos más cercanos.
+- **Dentro de cada mesa:** se ocupa primero el lado con visión directa al escenario y, dentro de él, los asientos más lejanos al escenario (pegados al escenario hay que forzar el cuello). Las reservas sí se acercan al escenario al elegir mesa.
 
 Las reglas completas, con lo pendiente de confirmar, están en los documentos del proyecto de Claude: «entradas-y-reglas-sitting» y «mapa-sala-scala».
 
