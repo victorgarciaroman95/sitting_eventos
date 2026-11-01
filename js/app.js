@@ -2556,16 +2556,16 @@ function seatSlots(t) {
     if (long) {
       const by = t.y + t.h - o;
       sd.push(
-        { x: t.x + t.w * 0.2, y: by, b: 1 },
-        { x: t.x + t.w * 0.8, y: by, b: 1 },
+        { x: t.x + t.w * 0.3, y: by, b: 1 },
+        { x: t.x + t.w * 0.7, y: by, b: 1 },
         { x: t.x + o, y: t.cy, b: 0 },
         { x: t.x + t.w - o, y: t.cy, b: 0 },
       );
     } else {
       const bx = t.cx < STAGE.x ? t.x + o : t.x + t.w - o;
       sd.push(
-        { x: bx, y: t.y + t.h * 0.2, b: 1 },
-        { x: bx, y: t.y + t.h * 0.8, b: 1 },
+        { x: bx, y: t.y + t.h * 0.3, b: 1 },
+        { x: bx, y: t.y + t.h * 0.7, b: 1 },
         { x: t.cx, y: t.y + o, b: 0 },
         { x: t.cx, y: t.y + t.h - o, b: 0 },
       );
