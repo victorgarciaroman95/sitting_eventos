@@ -1187,8 +1187,21 @@ function fitCols(u, t, share) {
 // ---- Numeración real de las mesas (la que se ve en el plano). Mesas sin número todavía: se quedan con su código provisional (V…, M…) solo en la lista y en la ficha.
 // VIP frontales: 1 a 9 de izquierda a derecha. Fila de mesas detrás de los VIP: desde el 100. Fila siguiente: desde el 200. Barra del anfiteatro: desde el 500.
 const NUM_FILAS = [100, 200];
-function numerar(vips, mesas) {
+function numerar(vips, mesas, pt) {
   [...vips, ...mesas].forEach((t) => (t.no = null));
+  // Pasillo de las 300: las mesas que están completamente dentro se numeran 300, 301… de izquierda a derecha
+  const e = 0.01,
+    in300 = (t) =>
+      pt &&
+      t.x >= pt.x - e &&
+      t.y >= pt.y - e &&
+      t.x + t.w <= pt.x + pt.w + e &&
+      t.y + t.h <= pt.y + pt.h + e;
+  const p3 = mesas.filter(in300).sort((a, b) => a.x - b.x || a.y - b.y);
+  p3.forEach((t, k) => {
+    t.no = 300 + k;
+  });
+  mesas = mesas.filter((t) => !in300(t));
   const row = vips.filter((v) => v.w >= v.h).sort((a, b) => a.x - b.x);
   row.forEach((v, k) => {
     v.no = k + 1;
@@ -1216,7 +1229,7 @@ function numerar(vips, mesas) {
         t.no = NUM_FILAS[i] + k;
       }),
   );
-  [...vips, ...mesas].forEach((t) => {
+  [...vips, ...mesas, ...p3].forEach((t) => {
     if (t.no != null) t.id = String(t.no);
   });
 }
@@ -1281,7 +1294,10 @@ async function runSitting(resv) {
   [...vips].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "V" + ++n));
   n = 0;
   [...mesas].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "M" + ++n));
-  numerar(vips, mesas);
+  {
+    const pd = base.find((d) => d[0] === "pt");
+    numerar(vips, mesas, pd ? { x: pd[1], y: pd[2], w: T.pt.w, h: T.pt.h } : null);
+  }
   // Sillones de la planta alta (2 personas con mesa redonda): última opción para General y Show
   const sill = [],
     p2t = [];
