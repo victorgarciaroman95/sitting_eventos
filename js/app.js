@@ -1028,6 +1028,7 @@ function parseExcel(buf) {
     const c = {
       res: ix("nreserva"),
       nom: ix("nombre"),
+      tel: ix("telefono"),
       cat: ix("categoria"),
       mn: ix("menusnomad"),
       mv: ix("menusveganos"),
@@ -1057,6 +1058,8 @@ function parseExcel(buf) {
       out.push({
         res: String(g(r, "res")),
         nom: String(g(r, "nom")),
+        tel: String(g(r, "tel")).trim(),
+        mn: num(g(r, "mn")),
         cat: catN,
         pax,
         veg: num(g(r, "mv")),
@@ -2087,7 +2090,7 @@ function sitOverlay() {
       const c = s.unit ? CATC[s.unit.cat] || "#888" : "none";
       if (s.unit && !s.pmr)
         el("circle", { cx: X(s.x), cy: Y(s.y), r: Math.max(2, 0.1 * S), fill: "#3B6D11" }, g);
-      el(
+      const sr = el(
         "rect",
         {
           x: (-s.cw * S) / 2,
@@ -2103,9 +2106,111 @@ function sitOverlay() {
         },
         g,
       );
+      if (s.unit) {
+        const uu = s.unit;
+        sr.style.pointerEvents = "all";
+        sr.style.cursor = "pointer";
+        sr.addEventListener("pointerdown", (ev) => {
+          ev.stopPropagation();
+          ev.preventDefault();
+          showPop(uu);
+        });
+      }
     }
   }
 }
+function showPop(u) {
+  if (!u || !u.res) return;
+  const box = document.getElementById("pop");
+  const e = esc_;
+  const tabsU = SIT ? SIT.tabs.filter((t) => occOf(t).some((o) => o.u === u)) : [],
+    mates = [...new Set(tabsU.flatMap((t) => t.occ.map((o) => o.u)).filter((x) => x !== u))];
+  const al = u.res.filter((r) => r.al),
+    obs = u.res.map((r) => r.ob).filter(Boolean),
+    mn = u.res.reduce((a, r) => a + (r.mn || 0), 0),
+    veg = u.res.reduce((a, r) => a + r.veg, 0),
+    ni = u.res.reduce((a, r) => a + r.nino, 0);
+  const contact = (v) => {
+    v = String(v).trim();
+    if (!v) return "";
+    if (v.includes("@")) return '<a href="mailto:' + e(v) + '">' + e(v) + "</a>";
+    const d = v.replace(/[^+\d]/g, "");
+    return d.length >= 6 ? '<a href="tel:' + e(d) + '">' + e(v) + "</a>" : e(v);
+  };
+  let h =
+    '<button class="x" aria-label="Cerrar">×</button><h3>' +
+    e(u.name) +
+    '</h3><div class="sub">' +
+    e(
+      u.res
+        .map((r) => r.res)
+        .filter(Boolean)
+        .join(", "),
+    ) +
+    "</div>";
+  h +=
+    '<span class="tag" style="background:' +
+    (CATC[u.cat] || "#888") +
+    '">' +
+    e(u.cat) +
+    "</span>" +
+    (u.pmr ? '<span class="tag" style="background:' + PMRC + '">' + u.pmr + " PMR</span>" : "") +
+    (u.cu ? '<span class="tag" style="background:#854F0B">🎂 Cumpleaños</span>' : "");
+  if (u.staff || u.gest)
+    h +=
+      '<div class="inv">' +
+      (u.staff ? "Invitación / personal: " + e(u.staff) : "Reserva con prioridad") +
+      (u.gest
+        ? " · gestionada por " + e(u.gest.toLowerCase()) + (u.gest === "Propiedad" ? " (familia Angulo)" : "")
+        : "") +
+      "</div>";
+  if (al.length)
+    h +=
+      '<div class="al">⚠ Alergias / intolerancias:<br>' +
+      al.map((r) => (u.res.length > 1 ? e(r.nom) + ": " : "") + e(r.al)).join("<br>") +
+      "</div>";
+  h +=
+    "<dl><dt>Personas</dt><dd>" +
+    u.pax +
+    "</dd><dt>Menús</dt><dd>" +
+    [mn ? mn + " Nomad" : "", veg ? veg + " vegano" : "", ni ? ni + " niño" : ""].filter(Boolean).join(", ") +
+    "</dd>";
+  h +=
+    "<dt>Ubicación</dt><dd>" +
+    (u.where.length ? e(u.where.join(", ")) : "<i>" + e(u.note || "Sin ubicar") + "</i>") +
+    "</dd>";
+  if (mates.length)
+    h +=
+      "<dt>Comparte mesa con</dt><dd>" +
+      mates.map((m) => e(m.name) + " (" + e(m.cat) + ", " + m.pax + ")").join("<br>") +
+      "</dd>";
+  const tels = u.res.filter((r) => r.tel);
+  if (tels.length)
+    h +=
+      "<dt>Contacto</dt><dd>" +
+      tels.map((r) => (u.res.length > 1 ? e(r.nom) + ": " : "") + contact(r.tel)).join("<br>") +
+      "</dd>";
+  const gr = [...new Set(u.res.map((r) => r.gr).filter(Boolean))];
+  if (gr.length)
+    h +=
+      "<dt>Código de grupo</dt><dd>" +
+      e(gr.join(", ")) +
+      (u.res.length > 1 ? " (" + u.res.length + " reservas juntas)" : "") +
+      "</dd>";
+  if (obs.length) h += "<dt>Observaciones</dt><dd>" + obs.map(e).join("<br>") + "</dd>";
+  h += "</dl>";
+  box.innerHTML = '<div class="popc" role="dialog">' + h + "</div>";
+  box.style.display = "flex";
+  box.onclick = (ev) => {
+    if (ev.target === box || ev.target.closest(".x")) box.style.display = "none";
+  };
+}
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") {
+    const b = document.getElementById("pop");
+    if (b) b.style.display = "none";
+  }
+});
 // Escapa texto para mostrarlo en la tabla sin riesgo.
 function esc_(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -2604,7 +2709,10 @@ function sitUp(e) {
   const dst = tableAt(pm(e));
   if (!dst || dst === mv.from) {
     render();
-    status(dst === mv.from ? unitInfo(mv.unit) : "", dst === mv.from && hasAl(mv.unit) ? "warn" : "");
+    if (dst === mv.from) {
+      status("", "");
+      showPop(mv.unit);
+    } else status("", "");
     return;
   }
   const u = mv.unit,
@@ -2687,7 +2795,7 @@ document.getElementById("sitres").addEventListener("click", (e) => {
   if (!tr || !SIT) return;
   const u = SIT.units[+tr.dataset.u];
   if (u.where.length) {
-    status(u.name + ": " + u.where.join(", "), "");
+    showPop(u);
     return;
   }
   pendingUnit = u;
