@@ -123,3 +123,4 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 3. `reservas-prueba-3.xlsx`: viernes al límite, 470 personas (anfiteatro completo, sillones y avisos).
 4. `reservas-prueba-4.xlsx`: 300 personas con muchas personas solas, PMR e invitaciones.
 5. `reservas-prueba-5.xlsx`: 400 personas en grupos grandes y reservas con código de grupo.
+- `reservas-parejas.xlsx`: 304 personas, casi todas en parejas (mesas de 8 y de 6 compartidas por parejas).
