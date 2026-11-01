@@ -1431,6 +1431,17 @@ async function runSitting(resv) {
     const isTwo = (t) => t.type === "m4u",
       pairs = [],
       singles = [];
+    // Mesas detrás de los VIP laterales (hacia la pared): no son prioridad. Solo se usan cuando las de delante (incluso compartiendo) están llenas, y de la más lejana al escenario a la más cercana.
+    const latV = vips.filter((v) => v.w < v.h),
+      latL = latV.filter((v) => v.cx < 22.5),
+      latR = latV.filter((v) => v.cx >= 22.5);
+    const isBL = (t) =>
+      t.type !== "vip" &&
+      ((latL.length && t.cx < Math.min(...latL.map((v) => v.x))) ||
+        (latR.length && t.cx > Math.max(...latR.map((v) => v.x + v.w))));
+    mesas.filter(isBL).forEach((t) => (t.dist = 1000 - 10 * t.cy));
+    const front = mesas.filter((t) => !isBL(t)),
+      back = mesas.filter(isBL);
     for (const u of units
       .filter((u) => u.cat === "General")
       .sort((a, b) => (b.pmr > 0) - (a.pmr > 0) || !!b.staff - !!a.staff || b.pax - a.pax)) {
@@ -1439,14 +1450,14 @@ async function runSitting(resv) {
         continue;
       }
       if (u.staff) {
-        if (placeOnTables(u, mesas.filter(isPrem))) {
+        if (placeOnTables(u, front.filter(isPrem))) {
           u.where[u.where.length - 1] += " · hueco Premium";
           continue;
         }
         if (
           placeOnTables(
             u,
-            mesas.filter((t) => !isPrem(t)),
+            front.filter((t) => !isPrem(t)),
           )
         )
           continue;
@@ -1457,14 +1468,14 @@ async function runSitting(resv) {
         singles.push(u);
         continue;
       }
-      if (placeOnTables(u, mesas.filter(isPrem))) {
+      if (placeOnTables(u, front.filter(isPrem))) {
         u.where[u.where.length - 1] += " · hueco Premium";
         continue;
       }
       if (
         placeOnTables(
           u,
-          mesas.filter((t) => !isPrem(t) && !isTwo(t)),
+          front.filter((t) => !isPrem(t) && !isTwo(t)),
         )
       )
         continue;
@@ -1475,36 +1486,44 @@ async function runSitting(resv) {
       toBarra.push(u);
     }
     for (const u of pairs) {
-      if (!placeOnTables(u, mesas.filter(isTwo))) toBarra.push(u);
+      if (!placeOnTables(u, front.filter(isTwo))) toBarra.push(u);
     }
     for (const u of singles) {
-      if (placeOnTables(u, mesas.filter(isTwo))) continue;
-      if (placeOnTables(u, mesas.filter(isPrem))) {
+      if (placeOnTables(u, front.filter(isTwo))) continue;
+      if (placeOnTables(u, front.filter(isPrem))) {
         u.where[u.where.length - 1] += " · hueco Premium";
         continue;
       }
       if (
         !placeOnTables(
           u,
-          mesas.filter((t) => !isPrem(t)),
+          front.filter((t) => !isPrem(t)),
         )
       )
         toBarra.push(u);
     }
-    // planta baja ante todo: si quedan General sin mesa propia, se comparten mesas con otras reservas General y, si aún quedan, se usan los huecos de las mesas Premium
-    const left = toBarra.filter((u) => !u.pmr).sort((a, b) => b.pax - a.pax);
-    for (const u of left) {
-      const hasPrem = (t) => occOf(t).some((o) => o.u.cat === "Premium");
-      if (
-        placeOnTables(
-          u,
-          mesas.filter((t) => !hasPrem(t)),
-          true,
-        ) ||
-        (placeOnTables(u, mesas.filter(hasPrem), true) &&
-          ((u.where[u.where.length - 1] += " con Premium"), true))
-      )
-        toBarra.splice(toBarra.indexOf(u), 1);
+    // planta baja ante todo: compartir mesas General de delante → mesas de detrás de los VIP laterales (propias y después compartidas) → huecos de las mesas Premium
+    const hasPrem = (t) => occOf(t).some((o) => o.u.cat === "Premium");
+    const steps = [
+      [front.filter((t) => !hasPrem(t)), true, ""],
+      [back, false, ""],
+      [back, true, ""],
+      [mesas.filter(hasPrem), true, " con Premium"],
+    ];
+    for (const [pool, sh, tag] of steps) {
+      const left = toBarra.filter((u) => !u.pmr).sort((a, b) => b.pax - a.pax);
+      for (const u of left) {
+        if (
+          placeOnTables(
+            u,
+            pool.filter((t) => !hasPrem(t) || tag),
+            sh,
+          )
+        ) {
+          if (tag) u.where[u.where.length - 1] += tag;
+          toBarra.splice(toBarra.indexOf(u), 1);
+        }
+      }
     }
   }
   // 4. Barra del anfiteatro de dentro hacia fuera (General en el centro, después Show), con una silla libre entre reservas.
