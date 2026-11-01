@@ -55,6 +55,8 @@ const T = {
   pt: { w: LX1 - LX0, h: 2.32, cap: 0, n: "Pasillo de las 300" },
   esc2: { w: 1.0, h: 1.2, cap: 0, n: "Escalera 1,00 × 1,20 m (0,80 m de alto)" },
 };
+// Versión del plano oficial (solo en la versión de GitHub): si cambia, se vuelve a cargar el plano oficial
+var OFICIAL_VER = (typeof PLANO_OFICIAL !== "undefined" && PLANO_OFICIAL.version) || "";
 // Mesas usadas por un lado: misma mesa con sillas solo en el lado que mira al escenario
 const ONE = { m4u: 1, m6u: 1, m8u: 1 },
   LADO = { m4: "m4u", m4u: "m4", m6: "m6u", m6u: "m6", m8: "m8u", m8u: "m8" };
@@ -287,7 +289,10 @@ function save() {
     F = FL[FLOOR],
     up = updated;
   try {
-    localStorage.setItem(F.ls, JSON.stringify({ tables: data, updated: up, roomW: W, vipV: 2 }));
+    localStorage.setItem(
+      F.ls,
+      JSON.stringify({ tables: data, updated: up, roomW: W, vipV: 2, ver: OFICIAL_VER }),
+    );
   } catch (e) {}
   status("Guardando…");
   clearTimeout(timers[F.doc]);
@@ -693,11 +698,17 @@ async function loadFloor(f) {
   try {
     local = JSON.parse(localStorage.getItem(F.ls));
   } catch (e) {}
+  // si el plano oficial ha cambiado desde que se guardó este, se carga el oficial nuevo
+  let nuevoOficial = false;
+  if (OFICIAL_VER && local && local.tables && local.ver !== OFICIAL_VER && PLANO_OFICIAL[f]) {
+    local = null;
+    nuevoOficial = true;
+  }
   if (local && local.tables) {
     fromData(local.tables, local.roomW, local.vipV);
     updated = local.updated || 0;
   } else defaults();
-  let changed = ensureEsc() || (local && local.tables && (local.roomW !== W || !local.vipV));
+  let changed = ensureEsc() || nuevoOficial || (local && local.tables && (local.roomW !== W || !local.vipV));
   document.getElementById("bu").disabled = true;
   render();
   await getDb();
@@ -1004,7 +1015,7 @@ async function floorData(f) {
   let best = null;
   try {
     const l = JSON.parse(localStorage.getItem(F.ls));
-    if (l && l.tables) best = { t: l.tables, u: l.updated || 0 };
+    if (l && l.tables && !(OFICIAL_VER && l.ver !== OFICIAL_VER)) best = { t: l.tables, u: l.updated || 0 };
   } catch (e) {}
   try {
     await getDb();
@@ -2209,16 +2220,16 @@ function sitOverlay() {
           } else if (horiz && (bt(t) === "m6" || t.type === "m4") && (x1 < 7.3 || x0 > 37.5)) {
             const ex = x1 < 7.3 ? x0 : x1;
             icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
-          } else if (horiz && bt(t) === "m8") {
-            const ex = (x0 + x1) / 2 < 22.5 ? x1 : x0;
-            icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
           } else if (
             horiz &&
-            (bt(t) === "m6" || t.type === "m4u") &&
+            (bt(t) === "m6" || bt(t) === "m8" || t.type === "m4u") &&
             [12.5, 32.5].some((w) => Math.abs(x0 - w) < 0.6 || Math.abs(x1 - w) < 0.6)
           ) {
             const w = [12.5, 32.5].find((w) => Math.abs(x0 - w) < 0.6 || Math.abs(x1 - w) < 0.6),
               ex = Math.abs(x0 - w) < Math.abs(x1 - w) ? x1 : x0;
+            icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
+          } else if (horiz && bt(t) === "m8") {
+            const ex = (x0 + x1) / 2 < 22.5 ? x1 : x0;
             icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
           } else if (horiz) {
             badgeOne(g, X(x0), Y(cy), icons[0]);
