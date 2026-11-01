@@ -1009,8 +1009,13 @@ async function floorData(f) {
         best = { t: JSON.parse(v.tables), u: v.updated };
     }
   } catch (e) {}
-  // si esa planta no se ha abierto nunca en este navegador, se usa el plano oficial
-  if (!best && typeof PLANO_OFICIAL !== "undefined" && PLANO_OFICIAL[f]) return PLANO_OFICIAL[f];
+  // si esa planta no se ha abierto nunca en este navegador (o lo guardado está vacío), se usa el plano oficial
+  if (
+    (!best || !best.t.some((d) => T[d[0]] && T[d[0]].cap > 0)) &&
+    typeof PLANO_OFICIAL !== "undefined" &&
+    PLANO_OFICIAL[f]
+  )
+    return PLANO_OFICIAL[f];
   return best ? best.t : [];
 }
 const keyOf = (ty, x, y) => ty + "@" + (+x).toFixed(2) + "," + (+y).toFixed(2);
