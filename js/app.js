@@ -384,11 +384,13 @@ function render() {
         g,
         SIT && SIT.tmap[keyOf(t.type, t.x, t.y)] && SIT.tmap[keyOf(t.type, t.x, t.y)].floor === FLOOR
           ? ""
-          : t.type === "pt"
-            ? "Pasillo de las 300"
-            : esc
-              ? "E"
-              : T[t.type].cap || "",
+          : SIT && T[t.type].cap
+            ? ((SIT.tabs.find((q) => q.floor === FLOOR && q.key === keyOf(t.type, t.x, t.y)) || {}).no ?? "")
+            : t.type === "pt"
+              ? "Pasillo de las 300"
+              : esc
+                ? "E"
+                : T[t.type].cap || "",
       );
       g.addEventListener("pointerdown", (e) => {
         e.stopPropagation();
@@ -1169,6 +1171,50 @@ function fitCols(u, t, share) {
   }
   return findRun(t, k);
 }
+// ---- Numeración real de las mesas (la que se ve en el plano). Mesas sin número todavía: se quedan con su código provisional (V…, M…) solo en la lista y en la ficha.
+// VIP frontales: 1 a 9 de izquierda a derecha. Fila de mesas detrás de los VIP: desde el 100. Fila siguiente: desde el 200. Barra del anfiteatro: desde el 500.
+const NUM_FILAS = [100, 200];
+function numerar(vips, mesas) {
+  [...vips, ...mesas].forEach((t) => (t.no = null));
+  const row = vips.filter((v) => v.w >= v.h).sort((a, b) => a.x - b.x);
+  row.forEach((v, k) => {
+    v.no = k + 1;
+  });
+  if (!row.length) return;
+  const yb = Math.max(...row.map((v) => v.y + v.h));
+  const behind = mesas.filter(
+    (t) =>
+      t.cy > yb &&
+      t.cx > Math.min(...row.map((v) => v.x)) - 1 &&
+      t.cx < Math.max(...row.map((v) => v.x + v.w)) + 1,
+  );
+  const filas = [];
+  behind
+    .sort((a, b) => a.cy - b.cy)
+    .forEach((t) => {
+      const f = filas.find((f) => Math.abs(f[0].cy - t.cy) < 0.8);
+      if (f) f.push(t);
+      else filas.push([t]);
+    });
+  filas.slice(0, NUM_FILAS.length).forEach((f, i) =>
+    f
+      .sort((a, b) => a.cx - b.cx)
+      .forEach((t, k) => {
+        t.no = NUM_FILAS[i] + k;
+      }),
+  );
+  [...vips, ...mesas].forEach((t) => {
+    if (t.no != null) t.id = String(t.no);
+  });
+}
+function tType(t) {
+  return String(T[t.type].n)
+    .replace(/^Mesa (\d)/, "mesa de $1")
+    .replace(/^Sillón/, "sillón");
+}
+function tLabel(t) {
+  return t.no != null ? (t.type === "vip" ? "VIP " : "Mesa ") + t.no : t.id;
+}
 // SITTING AUTOMÁTICO: reparte las reservas en mesas y en la barra siguiendo las reglas de Sala Scala.
 // Orden: VIP → Premium → Invitaciones/personal → General → barra del anfiteatro (General y Show).
 async function runSitting(resv) {
@@ -1222,6 +1268,7 @@ async function runSitting(resv) {
   [...vips].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "V" + ++n));
   n = 0;
   [...mesas].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "M" + ++n));
+  numerar(vips, mesas);
   // Sillones de la planta alta (2 personas con mesa redonda): última opción para General y Show
   const sill = [],
     p2t = [];
@@ -1375,7 +1422,7 @@ async function runSitting(resv) {
     if (!cands.length) return false;
     const run = cands[0].run;
     run.forEach((v) => addOcc(v, u));
-    u.where.push(run.map((v) => v.id).join("+"));
+    u.where.push(run.map(tLabel).join(" + "));
     return true;
   }
   // ---- Reservas gestionadas por la propiedad, el jefe de sala y el regidor (prioridad)
@@ -1404,7 +1451,7 @@ async function runSitting(resv) {
     c.sort((a, b) => a.sc - b.sc);
     if (!c.length) return false;
     c[0].run.forEach((v) => addOcc(v, u));
-    u.where.push(c[0].run.map((v) => v.id).join("+"));
+    u.where.push(c[0].run.map(tLabel).join(" + "));
     return true;
   }
   const mid9 = (row.length - 1) / 2,
@@ -1477,7 +1524,9 @@ async function runSitting(resv) {
     if (!best) return false;
     const sh = occOf(best.t).length > 0;
     addOcc(best.t, u, [best.c]);
-    u.where.push(best.t.id + " (" + T[best.t.type].n + ")" + (sh ? " · compartida" : ""));
+    u.where.push(
+      tLabel(best.t) + (best.t.no != null ? "" : " (" + tType(best.t) + ")") + (sh ? " · compartida" : ""),
+    );
     return true;
   }
   function placeOnTables(u, pool, share) {
@@ -1494,7 +1543,9 @@ async function runSitting(resv) {
     if (best) {
       const sh = occOf(best.t).length > 0;
       addOcc(best.t, u, best.cols);
-      u.where.push(best.t.id + " (" + T[best.t.type].n + ")" + (sh ? " · compartida" : ""));
+      u.where.push(
+        tLabel(best.t) + (best.t.no != null ? "" : " (" + tType(best.t) + ")") + (sh ? " · compartida" : ""),
+      );
       return true;
     }
     // dos mesas vacías pegadas
@@ -1513,7 +1564,7 @@ async function runSitting(resv) {
     if (b2) {
       addOcc(b2.a, u);
       addOcc(b2.b, u);
-      u.where.push(b2.a.id + "+" + b2.b.id + " (mesas juntas)");
+      u.where.push(tLabel(b2.a) + " + " + tLabel(b2.b) + " (mesas juntas)");
       return true;
     }
     return false;
@@ -1900,7 +1951,9 @@ async function runSitting(resv) {
     if (occOf(t).length > 1)
       t.occ.forEach((o) => {
         o.u.where = o.u.where.map((w) =>
-          w.startsWith(t.id + " (") && !w.includes("compartida") ? w + " · compartida" : w,
+          (w === tLabel(t) || w.startsWith(tLabel(t) + " (")) && !w.includes("compartida")
+            ? w + " · compartida"
+            : w,
         );
       });
   });
@@ -2010,7 +2063,7 @@ function sitOverlay() {
           },
           g,
         );
-      const nm = t.unit.res[0].nom.split(/[ ,]/)[0].slice(0, 9);
+      const nm = t.no != null ? String(t.no) : "";
       el(
         "text",
         {
@@ -2448,21 +2501,6 @@ function drawShared(g, t) {
     );
     const cx = X(r.x + r.w / 2),
       cy = Y(r.y + r.h / 2);
-    el(
-      "text",
-      {
-        x: cx,
-        y: cy,
-        "text-anchor": "middle",
-        "dominant-baseline": "central",
-        "font-size": 6,
-        fill: "var(--txt)",
-        "font-weight": 600,
-        transform: long ? "" : "rotate(-90 " + cx + " " + cy + ")",
-      },
-      g,
-      u.res[0].nom.split(/[ ,]/)[0].slice(0, 6),
-    );
     const nb = (hasAl(u) ? 1 : 0) + (u.cu ? 1 : 0);
     if (nb) {
       if (long) badges(g, cx - (nb - 1) * 5, Y(r.y), u);
@@ -2473,6 +2511,25 @@ function drawShared(g, t) {
         if (u.cu) badgeOne(g, ex, cy + (k - (nb - 1) / 2) * 10, "cu");
       }
     }
+  }
+  if (t.no != null) {
+    const X0 = X(t.x + t.w / 2),
+      Y0 = Y(t.y + t.h / 2);
+    el(
+      "text",
+      {
+        x: X0,
+        y: Y0,
+        "text-anchor": "middle",
+        "dominant-baseline": "central",
+        "font-size": t.w < 1.2 || t.h < 1.2 ? 7 : 9,
+        fill: "var(--txt)",
+        "font-weight": 600,
+        transform: t.h > t.w * 1.5 ? "rotate(-90 " + X0 + " " + Y0 + ")" : "",
+      },
+      g,
+      String(t.no),
+    );
   }
 }
 function sideKey(t, q) {
@@ -2696,10 +2753,13 @@ function rebuild() {
     u.where = barra.concat(
       ts2.length
         ? [
-            ts2.map((t) => t.id).join("+") +
-              (ts2.length > 1
+            ts2.map(tLabel).join(" + ") +
+              (ts2.length > 1 && ts2[0].type !== "vip"
                 ? " (mesas juntas)"
-                : " (" + T[ts2[0].type].n + ")" + (ts2[0].occ.length > 1 ? " · compartida" : "")),
+                : ts2.length > 1 || ts2[0].no != null
+                  ? ""
+                  : " (" + tType(ts2[0]) + ")") +
+              (ts2[0].occ.length > 1 ? " · compartida" : ""),
           ]
         : [],
     );
