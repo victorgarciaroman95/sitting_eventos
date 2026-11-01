@@ -1742,6 +1742,27 @@ async function runSitting(resv) {
       }
     }
   }
+  // 3b. Show en la planta baja: si quedan mesas General libres (ya sentado todo General), el Show baja antes de subir al anfiteatro.
+  // Mesas General que sobren (nunca VIP ni mesas de 8 Premium): primero las de delante de los VIP, después las de detrás de los VIP laterales. Primero mesa propia; si no, compartida con otra reserva Show. Show con PMR sigue yendo a la barra (zona PMR).
+  {
+    const gen = (t) =>
+      t.floor === "base" && t.type !== "vip" && bt(t) !== "m8" && !occOf(t).some((o) => o.u.cat !== "Show");
+    for (const u of units
+      .filter((u) => u.cat === "Show" && !u.gest && !u.pmr)
+      .sort((a, b) => b.pax - a.pax)) {
+      for (const [pool, sh] of [
+        [front.filter(gen), false],
+        [back.filter(gen), false],
+        [front.filter(gen), true],
+        [back.filter(gen), true],
+      ]) {
+        if (placeOnTables(u, pool, sh)) {
+          u.where[u.where.length - 1] += " · planta baja";
+          break;
+        }
+      }
+    }
+  }
   // 4. Barra del anfiteatro de dentro hacia fuera (General en el centro, después Show), con una silla libre entre reservas.
   // Si la sala se llena, se quitan las separaciones de las curvas y laterales (el tramo central las mantiene).
   const nS = seats.length,
@@ -1845,7 +1866,7 @@ async function runSitting(resv) {
   }
   {
     const big = (a, b) => b.pax - a.pax,
-      shows = units.filter((u) => u.cat === "Show" && !u.gest);
+      shows = units.filter((u) => u.cat === "Show" && !u.gest && !u.where.length);
     const grp = (l) => l.filter((u) => !u.pmr && u.pax > 1).sort(big),
       sgl = (l) => l.filter((u) => !u.pmr && u.pax === 1);
     const order = [
@@ -2796,6 +2817,7 @@ function okFor(u, t) {
   if (u.cat === "VIP") return t.type === "vip";
   if (u.cat === "Premium") return bt(t) === "m8" || t.type === "vip";
   if (u.cat === "General") return t.type !== "vip";
+  if (u.cat === "Show") return t.type !== "vip" && bt(t) !== "m8";
   return false;
 }
 // Mesas que ocupa una reserva.
