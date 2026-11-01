@@ -1336,27 +1336,30 @@ async function runSitting(resv) {
     return false;
   }
   // 1. VIP
+  // Orden de los VIP: primero la fila frontal, después los laterales más cercanos a ella; los que sobran son los laterales más cercanos al escenario
+  function placeVip(u) {
+    const k = Math.ceil(u.pax / 4);
+    const cands = [];
+    for (const blk of blocks)
+      for (let i = 0; i + k <= blk.length; i++) {
+        const run = blk.slice(i, i + k);
+        if (run.every((v) => !v.unit)) {
+          cands.push({ run, score: (blk.length >= 9 ? 0 : 1) * 100 + i });
+        }
+      }
+    cands.sort((a, b) => a.score - b.score);
+    if (!cands.length) return false;
+    const run = cands[0].run;
+    run.forEach((v) => addOcc(v, u));
+    u.where.push(run.map((v) => v.id).join("+"));
+    return true;
+  }
   units
     .filter((u) => u.cat === "VIP")
     .sort((a, b) => b.pax - a.pax)
     .forEach((u) => {
       const k = Math.ceil(u.pax / 4);
-      let done = false;
-      const cands = [];
-      for (const blk of blocks)
-        for (let i = 0; i + k <= blk.length; i++) {
-          const run = blk.slice(i, i + k);
-          if (run.every((v) => !v.unit)) {
-            cands.push({ run, score: (blk.length >= 9 ? 0 : 1) * 100 + i });
-          }
-        }
-      cands.sort((a, b) => a.score - b.score);
-      if (cands.length) {
-        const run = cands[0].run;
-        run.forEach((v) => addOcc(v, u));
-        u.where.push(run.map((v) => v.id).join("+"));
-        done = true;
-      }
+      let done = placeVip(u);
       if (!done) {
         warn.push("VIP sin hueco: " + u.name + " (" + u.pax + " pax, necesita " + k + " VIP pegados)");
         u.note = "Sin ubicar";
@@ -1410,7 +1413,12 @@ async function runSitting(resv) {
       if (!placeOnTables(u, mesas.filter(isPrem), false)) pf.push(u);
     }
     // si no caben todas en mesas propias, se comparten mesas de 8 entre reservas Premium
+    // Premium que no cabe en mesa propia: las reservas de 3 o más van a los VIP que sobran (una por VIP); las de 1–2, o si no hay VIP libre, comparten mesa de 8
     for (const u of pf) {
+      if (u.pax >= 3 && placeVip(u)) {
+        u.where[u.where.length - 1] += " (VIP libre)";
+        continue;
+      }
       if (!placeOnTables(u, mesas.filter(isPrem), true)) {
         warn.push("Premium sin hueco en las mesas de 8: " + u.name + " (" + u.pax + " pax)");
         u.note = "Sin ubicar";
@@ -2279,7 +2287,7 @@ function okFor(u, t) {
   if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
   if (t.floor === "p2") return u.cat === "Show";
   if (u.cat === "VIP") return t.type === "vip";
-  if (u.cat === "Premium") return t.type === "m8";
+  if (u.cat === "Premium") return t.type === "m8" || t.type === "vip";
   if (u.cat === "General") return t.type !== "vip";
   return false;
 }
@@ -2322,7 +2330,7 @@ function placeUnit(u, dst) {
     status("Esa mesa no admite la categoría " + u.cat + ".", "warn");
     return;
   }
-  if (u.cat !== "VIP" && !fitCols(u, dst, true)) {
+  if (dst.type !== "vip" && !fitCols(u, dst, true)) {
     status(
       dst.unit
         ? "En esa mesa no queda hueco para " + u.pax + " personas (o no se puede compartir con esa reserva)."
@@ -2331,12 +2339,12 @@ function placeUnit(u, dst) {
     );
     return;
   }
-  if (u.cat === "VIP" && dst.unit) {
+  if (dst.type === "vip" && dst.unit) {
     status("Ese VIP está ocupado.", "warn");
     return;
   }
-  if (u.cat === "VIP" && u.pax > 4) {
-    status("Grupo VIP de más de 4: muévelo arrastrando desde su VIP actual.", "warn");
+  if (dst.type === "vip" && u.pax > 4) {
+    status("Grupo de más de 4 en VIP: muévelo arrastrando desde su mesa actual.", "warn");
     return;
   }
   const fromBarra = u.where.some((w) => w.includes("barra"));
@@ -2351,7 +2359,7 @@ function placeUnit(u, dst) {
     u.mesaNo = null;
   }
   freeTables(u);
-  addOcc(dst, u, u.cat === "VIP" ? null : fitCols(u, dst, true));
+  addOcc(dst, u, dst.type === "vip" ? null : fitCols(u, dst, true));
   status("Colocado " + u.name + " en " + dst.id + (occOf(dst).length > 1 ? " (compartida)" : "") + ".", "ok");
   rebuild();
 }
@@ -2396,13 +2404,13 @@ function sitUp(e) {
   }
   if (!v) {
     // mover a libre: grupos multi-mesa necesitan mesas vecinas libres
-    let need = u.cat === "VIP" ? Math.ceil(u.pax / 4) : 1;
-    const cap = u.cat === "VIP" ? need * 4 : dst.cap;
-    if (u.cat !== "VIP" && dst.cap < u.pax) {
+    let need = dst.type === "vip" ? Math.ceil(u.pax / 4) : 1;
+    const cap = dst.type === "vip" ? need * 4 : dst.cap;
+    if (dst.type !== "vip" && dst.cap < u.pax) {
       status("No caben: " + u.pax + " personas en una mesa de " + dst.cap + ".", "warn");
       return;
     }
-    if (u.cat === "VIP" && need > 1) {
+    if (dst.type === "vip" && need > 1) {
       const blk = SIT.vipBlocks.find((b) => b.includes(dst)),
         i = blk.indexOf(dst),
         run = blk.slice(i, i + need);

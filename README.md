@@ -77,6 +77,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
   - las personas solas se agrupan en un mismo lado;
   - siempre queda una silla libre entre reservas.
 - **Sillones de la planta alta:** 7 sillones de 2 personas, cada uno con su mesa redonda delante. La visibilidad es muy mala, así que son la última opción para General y Show, cuando ya no queda sitio en la barra.
+- **Premium en VIP:** si las mesas de 8 se llenan, las reservas Premium de 3 o más van a los VIP que sobran (los VIP se llenan primero por la fila frontal y luego por los laterales más cercanos a ella).
 - **Mesas compartidas:** Premium con Premium y General con General cuando no hay mesas libres; si aún quedan General, en los huecos de las mesas Premium. Cada reserva ocupa un tramo seguido de la mesa (nunca se separa). Show: barra → mesas de 2 de planta alta → barra sin separaciones en curvas → mesas laterales → sillones.
 - **VIP:** 2 personas en la parte de atrás (la más alejada del escenario, de cara a él) y 1 en cada lado corto; primero se ocupa la parte de atrás.
 - **Dentro de cada mesa:** la gente se sienta cara a cara (por parejas enfrentadas, no uno al lado del otro); si sobra una persona, va al lado con visión al escenario. En las mesas de delante de los VIP (centrales y laterales) se empieza por los asientos más lejanos al escenario (pegados al escenario hay que forzar el cuello); en las mesas de detrás de los VIP, por los más cercanos al escenario.
