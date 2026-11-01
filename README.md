@@ -27,7 +27,7 @@ sitting_eventos/
 
 1. **Plano:** arranca siempre bloqueado. Pulsa «Plano bloqueado» para desbloquearlo si necesitas mover, añadir, girar o borrar mesas, y vuelve a bloquearlo al terminar.
 2. **Sitting:** en «Sitting automático», pulsa «Cargar Excel de reservas» y elige el Excel del día.
-   - Las mesas se colorean por categoría: VIP verde, Premium rosa, General azul y Show naranja.
+   - Las mesas se colorean por categoría: VIP verde, Premium morado, General azul y Show turquesa (amarillo, naranja y rojo quedan para marcas: PMR, invitaciones, alergias y cumpleaños).
    - Las reservas con PMR llevan contorno rojo. ⚠ marca alergias o intolerancias y 🎂 los cumpleaños.
    - Los puntos verdes indican dónde se sienta cada persona.
 3. **Ajustes a mano:** arrastra una reserva a una mesa libre para moverla, o a una ocupada para intercambiarlas. Toca una mesa para ver el detalle de su reserva.
