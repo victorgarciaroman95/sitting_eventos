@@ -2253,7 +2253,7 @@ function sitOverlay() {
           } else if (horiz) {
             badgeOne(g, X(x0), Y(cy), icons[0]);
             if (icons[1]) badgeOne(g, X(x1), Y(cy), icons[1]);
-          } else badges(g, X((x0 + x1) / 2) - (nb - 1) * 5, Y(y0), t.unit);
+          } else badges(g, X((x0 + x1) / 2) - (nb - 1) * 5, Y(t.no >= 100 && t.no < 200 ? y1 : y0), t.unit);
         }
       }
     }
@@ -2641,7 +2641,8 @@ function drawShared(g, t) {
     if (nb) {
       if (long) badges(g, cx - (nb - 1) * 5, Y(r.y), u);
       else {
-        const ex = t.cx < STAGE.x ? X(r.x) : X(r.x + r.w);
+        const r1 = t.no >= 100 && t.no < 200,
+          ex = t.cx < STAGE.x !== r1 ? X(r.x) : X(r.x + r.w);
         let k = 0;
         if (hasAl(u)) badgeOne(g, ex, cy + (k++ - (nb - 1) / 2) * 10, "al");
         if (u.cu) badgeOne(g, ex, cy + (k - (nb - 1) / 2) * 10, "cu");
