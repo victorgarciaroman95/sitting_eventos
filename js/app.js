@@ -431,7 +431,7 @@ function render() {
   const s = ts.find((t) => t.id === selId);
   sitOverlay();
   document.getElementById("sel").textContent = SIT
-    ? "Sitting cargado: mesas bloqueadas. Arrastra una reserva a otra mesa para moverla o intercambiarla."
+    ? "Sitting cargado y bloqueado: toca una reserva para ver su ficha. Para mover reservas, pulsa «Sitting bloqueado»."
     : s
       ? T[s.type].n +
         (s.r ? " (vertical)" : "") +
@@ -2311,6 +2311,7 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
       resv.reduce((a, r) => a + r.pax, 0) +
       " personas. Las mesas coloreadas son el sitting propuesto; cambia de planta para ver la barra del anfiteatro.";
     document.getElementById("sitclear").disabled = false;
+    setSitLock(true);
     render();
     showSitting();
   } catch (err) {
@@ -2566,7 +2567,7 @@ function sitDown(t, e) {
   const st = SIT.tabs.find((x) => x.floor === FLOOR && x.key === keyOf(t.type, t.x, t.y));
   if (!st) return;
   if (pendingUnit) {
-    placeUnit(pendingUnit, st);
+    if (!sitBlocked()) placeUnit(pendingUnit, st);
     pendingUnit = null;
     return;
   }
@@ -2584,6 +2585,7 @@ function sitDown(t, e) {
     if (o) mu = o.u;
   }
   pmove = { from: st, unit: mu, p: pm(e) };
+  if (SITLOCK) return;
   status("Moviendo " + mu.name + " (" + mu.pax + " pax)… suelta sobre otra mesa", "");
   sitGhost();
 }
@@ -2614,8 +2616,39 @@ function sitGhost() {
     pmove.unit.pax,
   );
 }
+// Bloqueo del sitting: al cargar el Excel queda bloqueado (solo se pueden consultar las reservas); hay que desbloquearlo para mover reservas
+var SITLOCK = true;
+function setSitLock(v) {
+  SITLOCK = v;
+  const b = document.getElementById("sitlock");
+  if (!b) return;
+  b.disabled = !SIT && v;
+  b.textContent = v ? "🔒 Sitting bloqueado" : "🔓 Sitting desbloqueado";
+  b.classList.toggle("unl", !v);
+}
+function toggleSitLock() {
+  if (!SIT) return;
+  setSitLock(!SITLOCK);
+  status(
+    SITLOCK
+      ? "Sitting bloqueado: toca una reserva para ver su ficha."
+      : "Sitting desbloqueado: ya puedes arrastrar reservas entre mesas. Vuelve a bloquearlo al terminar.",
+    SITLOCK ? "ok" : "warn",
+  );
+}
+function sitBlocked() {
+  if (SITLOCK) {
+    status(
+      "El sitting está bloqueado. Pulsa «Sitting bloqueado» para desbloquearlo y mover reservas.",
+      "warn",
+    );
+    return true;
+  }
+  return false;
+}
 // Actualiza la posición del círculo al mover.
 function sitMove(e) {
+  if (SITLOCK) return;
   pmove.p = pm(e);
   sitGhost();
 }
@@ -2715,6 +2748,10 @@ function sitUp(e) {
     } else status("", "");
     return;
   }
+  if (sitBlocked()) {
+    render();
+    return;
+  }
   const u = mv.unit,
     src = tablesOf(u);
   if (!okFor(u, dst)) {
@@ -2798,6 +2835,11 @@ document.getElementById("sitres").addEventListener("click", (e) => {
     showPop(u);
     return;
   }
+  if (SITLOCK) {
+    showPop(u);
+    sitBlocked();
+    return;
+  }
   pendingUnit = u;
   if (FLOOR !== "base") loadFloor("base");
   status("Toca una mesa libre del plano para colocar " + u.name + " (" + u.pax + " pax).", "");
@@ -2808,6 +2850,8 @@ function clearSitting() {
   SIT = null;
   pmove = null;
   pendingUnit = null;
+  setSitLock(true);
+  document.getElementById("sitlock").disabled = true;
   render();
   showSitting();
   document.getElementById("sitmsg").textContent = "Sin sitting cargado.";
