@@ -2551,21 +2551,21 @@ function seatSlots(t) {
   }
   // VIP: 2 personas en la parte de atrás (la más alejada del escenario, de cara a él) y 1 en cada lado corto; primero la parte de atrás
   if (ty === "vip") {
-    const o = 0.35,
+    const o = 0.2,
       sd = [];
     if (long) {
       const by = t.y + t.h - o;
       sd.push(
-        { x: t.x + t.w * 0.3, y: by, b: 1 },
-        { x: t.x + t.w * 0.7, y: by, b: 1 },
+        { x: t.x + t.w * 0.2, y: by, b: 1 },
+        { x: t.x + t.w * 0.8, y: by, b: 1 },
         { x: t.x + o, y: t.cy, b: 0 },
         { x: t.x + t.w - o, y: t.cy, b: 0 },
       );
     } else {
       const bx = t.cx < STAGE.x ? t.x + o : t.x + t.w - o;
       sd.push(
-        { x: bx, y: t.y + t.h * 0.3, b: 1 },
-        { x: bx, y: t.y + t.h * 0.7, b: 1 },
+        { x: bx, y: t.y + t.h * 0.2, b: 1 },
+        { x: bx, y: t.y + t.h * 0.8, b: 1 },
         { x: t.cx, y: t.y + o, b: 0 },
         { x: t.cx, y: t.y + t.h - o, b: 0 },
       );
@@ -2690,11 +2690,11 @@ function singleSide(t, u) {
   return null;
 }
 function vipSeats6(t, pax) {
-  const o = 0.35,
+  const o = 0.2,
     q = [];
   const long = t.w >= t.h;
   const back = pax === 5 ? [0.5] : [0.3, 0.7],
-    side = [0.32, 0.72];
+    side = pax === 5 ? [0.22, 0.72] : [0.22, 0.58];
   if (long) {
     const by = t.y + t.h - o;
     back.forEach((f) => q.push({ x: t.x + t.w * f, y: by }));
