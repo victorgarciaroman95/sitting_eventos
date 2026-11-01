@@ -1924,11 +1924,10 @@ function seatSlots(t) {
     for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ty === "m4u" ? 2 : per);
   }
   const pref = long ? (s) => s.ny > 0 : (s) => (t.cx < STAGE.x ? s.nx < 0 : s.nx > 0);
-  return out.map((s) => ({
-    x: s.x,
-    y: s.y,
-    score: (pref(s) ? 0 : 1000) - Math.hypot(STAGE.x - s.x, STAGE.y - s.y),
-  }));
+  // Cara a cara: se ocupan las sillas por parejas enfrentadas (las dos sillas de la misma posición a lo largo de la mesa), empezando por la posición más lejana al escenario; si sobra una persona, va al lado con visión al escenario
+  const colD = (s) =>
+    long ? Math.hypot(STAGE.x - s.x, STAGE.y - t.cy) : Math.hypot(STAGE.x - t.cx, STAGE.y - s.y);
+  return out.map((s) => ({ x: s.x, y: s.y, score: -Math.round(colD(s) * 100) * 10 + (pref(s) ? 0 : 1) }));
 }
 // Dibuja un punto verde por persona en los mejores asientos de cada mesa.
 function drawDots(g) {
