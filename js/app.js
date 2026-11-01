@@ -2589,12 +2589,12 @@ function seatSlots(t) {
     for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ONE[ty] ? T[ty].cap : per);
   }
   const pref = long ? (s) => s.ny > 0 : (s) => (t.cx < STAGE.x ? s.nx < 0 : s.nx > 0);
-  // Cara a cara: se ocupan las sillas por parejas enfrentadas (las dos sillas de la misma posición a lo largo de la mesa), empezando por la posición más lejana al escenario; si sobra una persona, va al lado con visión al escenario
+  // Hombro con hombro: primero se llena el lado con visión al escenario (de cara a él) y solo después el lado de enfrente
   const colD = (s) =>
     long ? Math.hypot(STAGE.x - s.x, STAGE.y - t.cy) : Math.hypot(STAGE.x - t.cx, STAGE.y - s.y);
   // Lejos del escenario solo en las mesas de delante de los VIP; en las de detrás de los VIP (centrales o laterales), primero lo más cercano al escenario
   const sg = behindVip(t) ? 1 : -1;
-  return out.map((s) => ({ x: s.x, y: s.y, score: sg * Math.round(colD(s) * 100) * 10 + (pref(s) ? 0 : 1) }));
+  return out.map((s) => ({ x: s.x, y: s.y, score: (pref(s) ? 0 : 1e7) + sg * Math.round(colD(s) * 100) }));
 }
 function behindVip(t) {
   if (t.floor && t.floor !== "base") return true; // mesas de la planta alta: primero los asientos más cercanos al escenario
@@ -2730,7 +2730,7 @@ function drawDots(g) {
       let q2 =
         isFV(o.t) && ol.length === 1 && u.pax > 4
           ? vipSeats6(o.t, u.pax)
-          : seatSlots(o.t).filter((q) => o.cols.includes(seatCol(o.t, q)));
+          : seatSlots(o.t).filter((q) => occOf(o.t).length === 1 || o.cols.includes(seatCol(o.t, q)));
       if (u.pax === 1 && o.t.occ.length > 1) {
         const sd = singleSide(o.t, u);
         if (sd) q2 = q2.filter((q) => sideKey(o.t, q) === sd);
