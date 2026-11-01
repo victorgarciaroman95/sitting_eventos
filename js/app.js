@@ -1549,10 +1549,24 @@ async function runSitting(resv) {
         u.where[u.where.length - 1] += " (VIP libre)";
         continue;
       }
-      if (!placeOnTables(u, mesas.filter(isPrem), true)) {
-        warn.push("Premium sin hueco en las mesas de 8: " + u.name + " (" + u.pax + " pax)");
-        u.note = "Sin ubicar";
+      if (placeOnTables(u, mesas.filter(isPrem), true)) continue;
+      // Premium que no cabe ni en las mesas de 8 ni en VIP: la mejor mesa General de delante de los VIP (más cercana al escenario), con aviso
+      const fr = mesas.filter((t) => t.type !== "m8" && t.type !== "m4u" && !isBL0(t));
+      if (placeOnTables(u, fr, false) || placeOnTables(u, fr, true)) {
+        u.where[u.where.length - 1] += " · Premium en mesa General";
+        warn.push(
+          "Premium sin sitio en mesas de 8 ni VIP: " +
+            u.name +
+            " (" +
+            u.pax +
+            " pax) va a " +
+            u.where[u.where.length - 1].split(" ")[0] +
+            ", mesa General más cercana al escenario",
+        );
+        continue;
       }
+      warn.push("Premium sin hueco: " + u.name + " (" + u.pax + " pax)");
+      u.note = "Sin ubicar";
     }
   }
   // 3. General: huecos Premium sobrantes (más cerca de la pasarela) → mesas General → barra del anfiteatro (centro). Con PMR: barra.

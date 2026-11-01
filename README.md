@@ -85,6 +85,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 - **Ficha de la reserva:** al tocar una mesa, una silla de la barra o una fila de la lista se abre una ventana con todos los datos: nº de reserva, categoría, personas y menús, invitación y quién la gestiona, alergias concretas (por persona si son varias reservas juntas), cumpleaños, PMR, ubicación, con quién comparte mesa, teléfono o email (se puede tocar para llamar o escribir), código de grupo y observaciones.
 - **Invitaciones:** contorno amarillo en el plano (columna «Invitación / personal» o reservas gestionadas). El rojo sigue siendo PMR.
 - **Reservas gestionadas (columna «Reserva gestionada por»):** se colocan antes que nadie. Propiedad (familia Angulo): los 3 VIP centrales. Jefe de sala: las mejores mesas de toda la sala (VIP, empezando por los centrales si la propiedad no los usa; después mesas de 8 y mesas de dentro de los VIP). Regidor: sus mesas asignadas (`REGIDOR_MESAS` en `js/app.js`, pendiente de definir) → VIP vacíos → mesas General de dentro de los VIP. Si no hay reservas de la propiedad o del regidor, sus mesas se usan de forma normal.
+- **Premium que no cabe en mesas de 8 ni en VIP:** va a la mesa General de delante de los VIP más cercana al escenario, con aviso.
 - **Mesas compartidas:** Premium con Premium y General con General cuando no hay mesas libres; si aún quedan General, en los huecos de las mesas Premium. Cada reserva ocupa un tramo seguido de la mesa (nunca se separa). Show: barra → mesas de 2 de planta alta → barra sin separaciones en curvas → mesas laterales → sillones.
 - **VIP:** 2 personas en la parte de atrás (la más alejada del escenario, de cara a él) y 1 en cada lado corto; primero se ocupa la parte de atrás.
 - **Dentro de cada mesa:** la gente se sienta cara a cara (por parejas enfrentadas, no uno al lado del otro); si sobra una persona, va al lado con visión al escenario. En las mesas de delante de los VIP (centrales y laterales) se empieza por los asientos más lejanos al escenario (pegados al escenario hay que forzar el cuello); en las mesas de detrás de los VIP y en las de la planta alta, por los más cercanos al escenario.
@@ -107,3 +108,12 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 - Numeración real de las mesas de planta baja. Por ahora se usan V1–V15 para los VIP y M1… para el resto de mesas.
 - Qué entradas van en las mesas de 6 y de 2 de la planta alta.
 - Medida real de los sillones (ahora 1,80 × 0,80 m, provisional) y su posición exacta.
+
+
+## Excel de prueba (`ejemplos/`)
+
+1. `reservas-prueba-1.xlsx`: martes tranquilo, 120 personas.
+2. `reservas-prueba-2.xlsx`: 250 personas con mucho Premium (Premium a VIP sobrantes, mesas compartidas y Premium en mesa General).
+3. `reservas-prueba-3.xlsx`: viernes al límite, 470 personas (anfiteatro completo, sillones y avisos).
+4. `reservas-prueba-4.xlsx`: 300 personas con muchas personas solas, PMR e invitaciones.
+5. `reservas-prueba-5.xlsx`: 400 personas en grupos grandes y reservas con código de grupo.
