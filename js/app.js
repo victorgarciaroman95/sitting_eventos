@@ -1120,7 +1120,13 @@ const REGIDOR_MESAS = [];
 // Mesas de 8 compartidas solo por parejas: con 2 parejas (PAIRLIM=2) las 4 personas van hombro con hombro en el lado con visión al escenario (se quitan las 4 sillas del otro lado); si falta sitio, 3 parejas cara a cara (PAIRLIM=3, se quita 1 silla de cada lado). t.pm = 2 o 3 cuando la mesa está en ese modo.
 var PAIRLIM = 2;
 function pairT(t) {
-  return t.type === "m8";
+  return t.type === "m8" || t.type === "m6";
+}
+function pairLim(t) {
+  return t.type === "m6" ? 2 : PAIRLIM;
+}
+function ffRow(t) {
+  return t.no >= 100 && t.no < 300;
 }
 function nCols(t) {
   if (t.pm) return t.pm;
@@ -1210,12 +1216,13 @@ function fitCols(u, t, share) {
     const ok = share && u.pax === 2 && occOf(t).every((o) => compat(o.u, u));
     if (t.pm) return ok ? findRun(t, 1) : null;
     if (ok && occOf(t).every((o) => o.u.pax === 2)) {
-      if (occOf(t).length >= PAIRLIM) return null;
-      t.pm = PAIRLIM;
+      const L = pairLim(t);
+      if (occOf(t).length >= L) return null;
+      t.pm = L;
       const ord = colOrder(t);
       t.pm = 0;
       const r = [ord[1]];
-      r.pm = PAIRLIM;
+      r.pm = L;
       return r;
     }
   } // las mesas de 2 nunca se comparten (dos personas solas no se sientan juntas)
@@ -2631,8 +2638,8 @@ function seatSlots(t) {
     }));
   }
   const per = t.pm === 3 ? 3 : Math.max(1, Math.round(T[ty].cap / 2)),
-    one = ONE[ty] || t.pm === 2,
-    nS = ONE[ty] ? T[ty].cap : t.pm === 2 ? 4 : per;
+    one = ONE[ty] || (t.pm === 2 && ty === "m8"),
+    nS = ONE[ty] ? T[ty].cap : t.pm === 2 && ty === "m8" ? 4 : per;
   if (long) {
     const far = { a: [t.x, t.y + t.h], b: [t.x + t.w, t.y + t.h], n: [0, 1] },
       near = { a: [t.x, t.y], b: [t.x + t.w, t.y], n: [0, -1] };
@@ -2650,6 +2657,10 @@ function seatSlots(t) {
     long ? Math.hypot(STAGE.x - s.x, STAGE.y - t.cy) : Math.hypot(STAGE.x - t.cx, STAGE.y - s.y);
   // Lejos del escenario solo en las mesas de delante de los VIP; en las de detrás de los VIP (centrales o laterales), primero lo más cercano al escenario
   const sg = behindVip(t) ? 1 : -1;
+  if (ty === "m6" && t.pm) {
+    const mid = (q) => Math.abs(long ? q.x - t.cx : q.y - t.cy) < 0.05;
+    for (let i = out.length - 1; i >= 0; i--) if (mid(out[i])) out.splice(i, 1);
+  }
   return out.map((s) => ({ x: s.x, y: s.y, score: (pref(s) ? 0 : 1e7) + sg * Math.round(colD(s) * 100) }));
 }
 function behindVip(t) {
@@ -2786,7 +2797,10 @@ function drawDots(g) {
       let q2 =
         isFV(o.t) && ol.length === 1 && u.pax > 4
           ? vipSeats6(o.t, u.pax)
-          : seatSlots(o.t).filter((q) => occOf(o.t).length === 1 || o.cols.includes(seatCol(o.t, q)));
+          : seatSlots(o.t).filter(
+              (q) =>
+                (occOf(o.t).length === 1 && !(u.pax === 2 && ffRow(o.t))) || o.cols.includes(seatCol(o.t, q)),
+            );
       if (u.pax === 1 && o.t.occ.length > 1) {
         const sd = singleSide(o.t, u);
         if (sd) q2 = q2.filter((q) => sideKey(o.t, q) === sd);

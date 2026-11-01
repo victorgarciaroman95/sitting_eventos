@@ -93,6 +93,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 - **Mesas compartidas:** Premium con Premium y General con General cuando no hay mesas libres; si aún quedan General, en los huecos de las mesas Premium. Cada reserva ocupa un tramo seguido de la mesa (nunca se separa). Show: barra → mesas de 2 de planta alta → barra sin separaciones en curvas → mesas laterales → sillones.
 - **VIP:** 2 personas en la parte de atrás (la más alejada del escenario, de cara a él) y 1 en cada lado corto; primero se ocupa la parte de atrás.
 - **Parejas en mesas de 8 compartidas:** 2 parejas hombro con hombro en el lado con visión al escenario (se quitan las 4 sillas del otro lado); si falta sitio, 3 parejas cara a cara (se quita 1 silla de cada lado).
+- **Parejas en mesas de 6 compartidas:** se quitan las 2 sillas del medio y van 2 parejas cara a cara, una en cada extremo. En las filas 100 y 200 una pareja sola también va cara a cara.
 - **Dentro de cada mesa:** la gente se sienta hombro con hombro en el lado con visión al escenario, y solo cuando ese lado se llena se usa el de enfrente (en mesas compartidas, cada reserva en su tramo). En las mesas de delante de los VIP (centrales y laterales) se empieza por los asientos más lejanos al escenario (pegados al escenario hay que forzar el cuello); en las mesas de detrás de los VIP y en las de la planta alta, por los más cercanos al escenario.
 
 Las reglas completas, con lo pendiente de confirmar, están en los documentos del proyecto de Claude: «entradas-y-reglas-sitting» y «mapa-sala-scala».
