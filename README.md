@@ -57,6 +57,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 | Código de grupo | Mismo código para reservas separadas que vienen juntas |
 | Observaciones | Texto libre |
 | Invitación / personal | No, Invitación, Familia/amigos o Trabajador |
+| Reserva gestionada por | Vacío, Propiedad, Jefe de sala o Regidor |
 
 `ejemplos/reservas-sala-scala.xlsx` sirve de plantilla: borra las filas de prueba y añade las reservas reales.
 
@@ -80,6 +81,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 - **Premium en VIP:** si las mesas de 8 se llenan, las reservas Premium de 3 o más van a los VIP que sobran (los VIP se llenan primero por la fila frontal y luego por los laterales más cercanos a ella).
 - **Mesas de detrás de los VIP laterales:** no son prioridad; antes se comparte mesa por delante de los VIP. Cuando hacen falta, se ocupan del fondo hacia el escenario.
 - **Personas solas (General):** mesa de 2 libre de planta baja → anfiteatro (siempre con silla libre entre personas solas) → compartir mesa de 4, 6 u 8 en diagonal (nunca cara a cara ni hombro con hombro). Dos personas solas nunca comparten mesa de 2.
+- **Reservas gestionadas (columna «Reserva gestionada por»):** se colocan antes que nadie. Propiedad (familia Angulo): los 3 VIP centrales. Jefe de sala: las mejores mesas de toda la sala (VIP, empezando por los centrales si la propiedad no los usa; después mesas de 8 y mesas de dentro de los VIP). Regidor: sus mesas asignadas (`REGIDOR_MESAS` en `js/app.js`, pendiente de definir) → VIP vacíos → mesas General de dentro de los VIP. Si no hay reservas de la propiedad o del regidor, sus mesas se usan de forma normal.
 - **Mesas compartidas:** Premium con Premium y General con General cuando no hay mesas libres; si aún quedan General, en los huecos de las mesas Premium. Cada reserva ocupa un tramo seguido de la mesa (nunca se separa). Show: barra → mesas de 2 de planta alta → barra sin separaciones en curvas → mesas laterales → sillones.
 - **VIP:** 2 personas en la parte de atrás (la más alejada del escenario, de cara a él) y 1 en cada lado corto; primero se ocupa la parte de atrás.
 - **Dentro de cada mesa:** la gente se sienta cara a cara (por parejas enfrentadas, no uno al lado del otro); si sobra una persona, va al lado con visión al escenario. En las mesas de delante de los VIP (centrales y laterales) se empieza por los asientos más lejanos al escenario (pegados al escenario hay que forzar el cuello); en las mesas de detrás de los VIP y en las de la planta alta, por los más cercanos al escenario.
