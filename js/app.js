@@ -1117,7 +1117,13 @@ function rectGap(a, b) {
 var VIPS = [];
 // Mesas asignadas al regidor (ids del plano). Pendiente: el jefe de sala tiene que confirmar cuáles son.
 const REGIDOR_MESAS = [];
+// Mesas de 8 compartidas solo por parejas: con 2 parejas (PAIRLIM=2) las 4 personas van hombro con hombro en el lado con visión al escenario (se quitan las 4 sillas del otro lado); si falta sitio, 3 parejas cara a cara (PAIRLIM=3, se quita 1 silla de cada lado). t.pm = 2 o 3 cuando la mesa está en ese modo.
+var PAIRLIM = 2;
+function pairT(t) {
+  return t.type === "m8";
+}
 function nCols(t) {
+  if (t.pm) return t.pm;
   return ONE[t.type]
     ? t.cap
     : t.type === "vip" || (T[t.type] && T[t.type].sofa) || t.type === "r60"
@@ -1168,11 +1174,21 @@ function findRun(t, k) {
   return null;
 }
 function addOcc(t, u, cols) {
+  if (cols && cols.pm && !t.pm) {
+    t.pm = cols.pm;
+    const o0 = colOrder(t)[0];
+    occOf(t).forEach((o) => (o.cols = [o0]));
+  }
   occOf(t).push({ u, cols: cols || [...Array(nCols(t)).keys()] });
   syncT(t);
 }
 function remOcc(t, u) {
   t.occ = occOf(t).filter((o) => o.u !== u);
+  if (t.pm && occOf(t).length <= 1) {
+    t.pm = 0;
+    const c0 = colOrder(t)[0];
+    occOf(t).forEach((o) => (o.cols = [c0]));
+  }
   syncT(t);
 }
 function compat(a, b) {
@@ -1189,7 +1205,20 @@ function seatCol(t, q) {
 function fitCols(u, t, share) {
   const k = colsNeed(u, t);
   if (nCols(t) === 1) return occOf(t).length || t.cap < u.pax ? null : [0];
-  if (t.type === "m4u" && occOf(t).length) return null; // las mesas de 2 nunca se comparten (dos personas solas no se sientan juntas)
+  if (t.type === "m4u" && occOf(t).length) return null;
+  if (pairT(t) && occOf(t).length) {
+    const ok = share && u.pax === 2 && occOf(t).every((o) => compat(o.u, u));
+    if (t.pm) return ok ? findRun(t, 1) : null;
+    if (ok && occOf(t).every((o) => o.u.pax === 2)) {
+      if (occOf(t).length >= PAIRLIM) return null;
+      t.pm = PAIRLIM;
+      const ord = colOrder(t);
+      t.pm = 0;
+      const r = [ord[1]];
+      r.pm = PAIRLIM;
+      return r;
+    }
+  } // las mesas de 2 nunca se comparten (dos personas solas no se sientan juntas)
   if (occOf(t).length) {
     if (!share || !occOf(t).every((o) => compat(o.u, u))) return null;
   }
@@ -1589,7 +1618,7 @@ async function runSitting(resv) {
   function placeSingle(u, pool) {
     let best = null;
     for (const t of pool) {
-      if (nCols(t) < 2 || ONE[t.type]) continue;
+      if (nCols(t) < 2 || ONE[t.type] || t.pm) continue;
       if (occOf(t).length && !occOf(t).every((o) => compat(o.u, u))) continue;
       const used = usedCols(t);
       const solo = (c) => occOf(t).some((o) => o.u.pax === 1 && o.cols.length === 1 && o.cols[0] === c);
@@ -2505,7 +2534,32 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
     if (typeof XLSX === "undefined") throw new Error("No se pudo cargar el lector de Excel.");
     const resv = parseExcel(await f.arrayBuffer());
     if (!resv.length) throw new Error("No hay reservas en el archivo.");
+    PAIRLIM = 2;
     await runSitting(resv);
+    // Si falta sitio (reservas sin ubicar, o grupos General/Premium que han tenido que subir), se repite con 3 parejas por mesa de 8
+    {
+      const falta = (S) =>
+        S.units.filter(
+          (u) =>
+            u.note === "Sin ubicar" ||
+            (!u.pmr &&
+              u.pax >= 2 &&
+              (u.cat === "General" || u.cat === "Premium") &&
+              u.where.some((w) => /barra|planta alta/.test(w))),
+        ).length;
+      if (falta(SIT)) {
+        const s2 = SIT;
+        PAIRLIM = 3;
+        await runSitting(resv);
+        if (falta(SIT) > falta(s2)) {
+          SIT = s2;
+          PAIRLIM = 2;
+        } else if (SIT.tabs.some((t) => t.pm === 3))
+          SIT.warn.push(
+            "Sala con poco sitio: algunas mesas de 8 compartidas por parejas llevan 3 parejas cara a cara (6 personas).",
+          );
+      }
+    }
     m.textContent =
       f.name +
       ": " +
@@ -2576,17 +2630,19 @@ function seatSlots(t) {
       score: (q.b ? 0 : 1000) - Math.hypot(q.x - STAGE.x, q.y - STAGE.y),
     }));
   }
-  const per = Math.max(1, Math.round(T[ty].cap / 2));
+  const per = t.pm === 3 ? 3 : Math.max(1, Math.round(T[ty].cap / 2)),
+    one = ONE[ty] || t.pm === 2,
+    nS = ONE[ty] ? T[ty].cap : t.pm === 2 ? 4 : per;
   if (long) {
     const far = { a: [t.x, t.y + t.h], b: [t.x + t.w, t.y + t.h], n: [0, 1] },
       near = { a: [t.x, t.y], b: [t.x + t.w, t.y], n: [0, -1] };
-    const sides = ONE[ty] ? [t.cy > STAGE.y ? far : near] : [far, near];
-    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ONE[ty] ? T[ty].cap : per);
+    const sides = one ? [t.cy > STAGE.y ? far : near] : [far, near];
+    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], nS);
   } else {
     const left = { a: [t.x, t.y], b: [t.x, t.y + t.h], n: [-1, 0] },
       right = { a: [t.x + t.w, t.y], b: [t.x + t.w, t.y + t.h], n: [1, 0] };
-    const sides = ONE[ty] ? [t.cx < STAGE.x ? left : right] : [left, right];
-    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ONE[ty] ? T[ty].cap : per);
+    const sides = one ? [t.cx < STAGE.x ? left : right] : [left, right];
+    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], nS);
   }
   const pref = long ? (s) => s.ny > 0 : (s) => (t.cx < STAGE.x ? s.nx < 0 : s.nx > 0);
   // Hombro con hombro: primero se llena el lado con visión al escenario (de cara a él) y solo después el lado de enfrente
