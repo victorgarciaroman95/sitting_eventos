@@ -47,12 +47,18 @@ const T = {
   m6: { w: 1.5, h: 0.6, cap: 6, n: "Mesa 6" },
   m4: { w: 1.1, h: 0.6, cap: 4, n: "Mesa 4" },
   m4u: { w: 1.1, h: 0.6, cap: 2, n: "Mesa 4 usada por un lado" },
+  m6u: { w: 1.5, h: 0.6, cap: 3, n: "Mesa 6 usada por un lado" },
+  m8u: { w: 2.12, h: 0.6, cap: 4, n: "Mesa 8 usada por un lado" },
   r60: { w: 0.6, h: 0.6, cap: 0, n: "Mesa redonda Ø 0,60 m", round: true },
   sil4: { w: 1.8, h: 1.6, cap: 2, n: "Sillón 2 con mesa redonda delante", sofa: true },
   esc: { w: 0.6, h: 1.2, cap: 0, n: "Escalera 0,60 × 1,20 m (0,80 m de alto)" },
   pt: { w: LX1 - LX0, h: 2.32, cap: 0, n: "Pasillo de las 300" },
   esc2: { w: 1.0, h: 1.2, cap: 0, n: "Escalera 1,00 × 1,20 m (0,80 m de alto)" },
 };
+// Mesas usadas por un lado: misma mesa con sillas solo en el lado que mira al escenario
+const ONE = { m4u: 1, m6u: 1, m8u: 1 },
+  LADO = { m4: "m4u", m4u: "m4", m6: "m6u", m6u: "m6", m8: "m8u", m8u: "m8" };
+const bt = (t) => ({ m6u: "m6", m8u: "m8" })[t.type] || t.type;
 const NS = "http://www.w3.org/2000/svg",
   svg = document.getElementById("plan"),
   tl = document.getElementById("tl"),
@@ -323,7 +329,7 @@ function render() {
         },
         g,
       );
-      if (t.type === "m4u") r.setAttribute("stroke-dasharray", "3 2");
+      if (ONE[t.type]) r.setAttribute("stroke-dasharray", "3 2");
       let lx = t.x + d.w / 2,
         ly = t.y + d.h / 2;
       if (T[t.type].sofa) {
@@ -621,12 +627,12 @@ function addT(type) {
 function lado() {
   if (sitLocked()) return;
   const t = cur();
-  if (t && (t.type === "m4" || t.type === "m4u")) {
+  if (t && LADO[t.type]) {
     snapshot();
-    t.type = t.type === "m4" ? "m4u" : "m4";
+    t.type = LADO[t.type];
     render();
     save();
-  }
+  } else if (t) status("Solo las mesas de 4, 6 y 8 se pueden usar por un lado.", "warn");
 }
 // Botón "Girar": gira la mesa seleccionada 90 grados.
 function rot() {
@@ -1101,14 +1107,14 @@ var VIPS = [];
 // Mesas asignadas al regidor (ids del plano). Pendiente: el jefe de sala tiene que confirmar cuáles son.
 const REGIDOR_MESAS = [];
 function nCols(t) {
-  return t.type === "m4u"
-    ? 2
+  return ONE[t.type]
+    ? t.cap
     : t.type === "vip" || (T[t.type] && T[t.type].sofa) || t.type === "r60"
       ? 1
       : Math.max(1, Math.round(t.cap / 2));
 }
 function perCol(t) {
-  return t.type === "m4u" ? 1 : nCols(t) === 1 ? t.cap : 2;
+  return ONE[t.type] ? 1 : nCols(t) === 1 ? t.cap : 2;
 }
 function colsNeed(u, t) {
   return Math.ceil(u.pax / perCol(t));
@@ -1490,7 +1496,7 @@ async function runSitting(resv) {
   {
     const best = tabs
       .filter((t) => t.floor === "base" && t.type !== "vip" && !isBL0(t))
-      .sort((a, b) => (a.type === "m8" ? 0 : 1) - (b.type === "m8" ? 0 : 1) || a.dist - b.dist);
+      .sort((a, b) => (bt(a) === "m8" ? 0 : 1) - (bt(b) === "m8" ? 0 : 1) || a.dist - b.dist);
     for (const u of units.filter((u) => u.gest === "Jefe de sala").sort((a, b) => b.pax - a.pax)) {
       if (vipBy(u, rowScore) || placeOnTables(u, best, false) || placeOnTables(u, best, true)) {
         u.where[u.where.length - 1] += gTag[u.gest];
@@ -1512,12 +1518,12 @@ async function runSitting(resv) {
       if (u.pmr) warn.push("PMR en VIP: " + u.name + " – revisar accesibilidad");
     });
   // 2. Premium (mesas de 8 alrededor de la pasarela; nunca en VIP)
-  const isPrem = (t) => t.type === "m8";
+  const isPrem = (t) => bt(t) === "m8";
   // Persona sola en mesa compartida: ocupa su propia pareja de sillas; con otra persona sola al lado, en diagonal (nunca cara a cara ni hombro con hombro)
   function placeSingle(u, pool) {
     let best = null;
     for (const t of pool) {
-      if (nCols(t) < 2) continue;
+      if (nCols(t) < 2 || ONE[t.type]) continue;
       if (occOf(t).length && !occOf(t).every((o) => compat(o.u, u))) continue;
       const used = usedCols(t);
       const solo = (c) => occOf(t).some((o) => o.u.pax === 1 && o.cols.length === 1 && o.cols[0] === c);
@@ -1579,7 +1585,7 @@ async function runSitting(resv) {
   // 3) Regidor: sus mesas → VIP vacíos → mesas General de dentro de los VIP
   regT.forEach((t) => remOcc(t, HOLD));
   {
-    const inner = tabs.filter((t) => t.floor === "base" && t.type !== "vip" && t.type !== "m8" && !isBL0(t));
+    const inner = tabs.filter((t) => t.floor === "base" && t.type !== "vip" && bt(t) !== "m8" && !isBL0(t));
     for (const u of regU.sort((a, b) => b.pax - a.pax)) {
       if (
         placeOnTables(u, regT, false) ||
@@ -1609,7 +1615,7 @@ async function runSitting(resv) {
       }
       if (placeOnTables(u, mesas.filter(isPrem), true)) continue;
       // Premium que no cabe ni en las mesas de 8 ni en VIP: la mejor mesa General de delante de los VIP (más cercana al escenario), con aviso
-      const fr = mesas.filter((t) => t.type !== "m8" && t.type !== "m4u" && !isBL0(t));
+      const fr = mesas.filter((t) => bt(t) !== "m8" && t.type !== "m4u" && !isBL0(t));
       if (placeOnTables(u, fr, false) || placeOnTables(u, fr, true)) {
         u.where[u.where.length - 1] += " · Premium en mesa General";
         warn.push(
@@ -2143,15 +2149,15 @@ function sitOverlay() {
             icons.forEach((ic, k) =>
               badgeOne(g, X((x0 + x1) / 2) + (k - (icons.length - 1) / 2) * 10, Y(y0), ic),
             );
-          } else if (horiz && (t.type === "m6" || t.type === "m4") && (x1 < 7.3 || x0 > 37.5)) {
+          } else if (horiz && (bt(t) === "m6" || t.type === "m4") && (x1 < 7.3 || x0 > 37.5)) {
             const ex = x1 < 7.3 ? x0 : x1;
             icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
-          } else if (horiz && t.type === "m8") {
+          } else if (horiz && bt(t) === "m8") {
             const ex = (x0 + x1) / 2 < 22.5 ? x1 : x0;
             icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
           } else if (
             horiz &&
-            (t.type === "m6" || t.type === "m4u") &&
+            (bt(t) === "m6" || t.type === "m4u") &&
             [12.5, 32.5].some((w) => Math.abs(x0 - w) < 0.6 || Math.abs(x1 - w) < 0.6)
           ) {
             const w = [12.5, 32.5].find((w) => Math.abs(x0 - w) < 0.6 || Math.abs(x1 - w) < 0.6),
@@ -2487,13 +2493,13 @@ function seatSlots(t) {
   if (long) {
     const far = { a: [t.x, t.y + t.h], b: [t.x + t.w, t.y + t.h], n: [0, 1] },
       near = { a: [t.x, t.y], b: [t.x + t.w, t.y], n: [0, -1] };
-    const sides = ty === "m4u" ? [t.cy > STAGE.y ? far : near] : [far, near];
-    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ty === "m4u" ? 2 : per);
+    const sides = ONE[ty] ? [t.cy > STAGE.y ? far : near] : [far, near];
+    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ONE[ty] ? T[ty].cap : per);
   } else {
     const left = { a: [t.x, t.y], b: [t.x, t.y + t.h], n: [-1, 0] },
       right = { a: [t.x + t.w, t.y], b: [t.x + t.w, t.y + t.h], n: [1, 0] };
-    const sides = ty === "m4u" ? [t.cx < STAGE.x ? left : right] : [left, right];
-    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ty === "m4u" ? 2 : per);
+    const sides = ONE[ty] ? [t.cx < STAGE.x ? left : right] : [left, right];
+    for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], ONE[ty] ? T[ty].cap : per);
   }
   const pref = long ? (s) => s.ny > 0 : (s) => (t.cx < STAGE.x ? s.nx < 0 : s.nx > 0);
   // Cara a cara: se ocupan las sillas por parejas enfrentadas (las dos sillas de la misma posición a lo largo de la mesa), empezando por la posición más lejana al escenario; si sobra una persona, va al lado con visión al escenario
@@ -2772,7 +2778,7 @@ function okFor(u, t) {
   if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
   if (t.floor === "p2") return u.cat === "Show";
   if (u.cat === "VIP") return t.type === "vip";
-  if (u.cat === "Premium") return t.type === "m8" || t.type === "vip";
+  if (u.cat === "Premium") return bt(t) === "m8" || t.type === "vip";
   if (u.cat === "General") return t.type !== "vip";
   return false;
 }
