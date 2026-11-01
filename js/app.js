@@ -2167,7 +2167,7 @@ function seatSlots(t) {
   return out.map((s) => ({ x: s.x, y: s.y, score: sg * Math.round(colD(s) * 100) * 10 + (pref(s) ? 0 : 1) }));
 }
 function behindVip(t) {
-  if (t.floor && t.floor !== "base") return false;
+  if (t.floor && t.floor !== "base") return true; // mesas de la planta alta: primero los asientos más cercanos al escenario
   const v = VIPS;
   if (!v.length) return false;
   const cen = v.filter((x) => x.w >= x.h),
