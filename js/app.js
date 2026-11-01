@@ -1329,6 +1329,10 @@ async function runSitting(resv) {
   tabs.forEach((t) => {
     t.prem = (bt(t) === "m8" && t.h > t.w) || (t.no >= 100 && t.no < 200);
   });
+  // Los 3 VIP centrales (4, 5 y 6) admiten hasta 6 personas
+  vips.forEach((v) => {
+    if (v.no >= 4 && v.no <= 6) v.cap = 6;
+  });
   // Sillones de la planta alta (2 personas con mesa redonda): última opción para General y Show
   const sill = [],
     p2t = [];
@@ -1478,6 +1482,13 @@ async function runSitting(resv) {
           cands.push({ run, score: (blk.length >= 9 ? 0 : 1) * 100 + i });
         }
       }
+    // grupos de 5 o 6: un solo VIP central (4, 5 o 6) en lugar de dos VIP
+    if (u.pax > 4)
+      for (const blk of blocks)
+        blk.forEach((v, i) => {
+          if (!v.unit && v.cap >= u.pax)
+            cands.push({ run: [v], score: -10 + Math.abs(i - (blk.length - 1) / 2) });
+        });
     cands.sort((a, b) => a.score - b.score);
     if (!cands.length) return false;
     const run = cands[0].run;
@@ -1508,6 +1519,14 @@ async function runSitting(resv) {
           if (sc != null) c.push({ run, sc });
         }
       }
+    if (u.pax > 4)
+      for (const blk of blocks)
+        blk.forEach((v, i) => {
+          if (!v.unit && v.cap >= u.pax) {
+            const sc = scoreFn(blk, i, 1);
+            if (sc != null) c.push({ run: [v], sc: sc - 10 });
+          }
+        });
     c.sort((a, b) => a.sc - b.sc);
     if (!c.length) return false;
     c[0].run.forEach((v) => addOcc(v, u));
@@ -2670,6 +2689,29 @@ function singleSide(t, u) {
   }
   return null;
 }
+function vipSeats6(t, pax) {
+  const o = 0.35,
+    q = [];
+  const long = t.w >= t.h;
+  const back = pax === 5 ? [0.5] : [0.3, 0.7],
+    side = [0.32, 0.72];
+  if (long) {
+    const by = t.y + t.h - o;
+    back.forEach((f) => q.push({ x: t.x + t.w * f, y: by }));
+    side.forEach((f) => {
+      q.push({ x: t.x + o, y: t.y + t.h * f });
+      q.push({ x: t.x + t.w - o, y: t.y + t.h * f });
+    });
+  } else {
+    const bx = t.cx < STAGE.x ? t.x + o : t.x + t.w - o;
+    back.forEach((f) => q.push({ x: bx, y: t.y + t.h * f }));
+    side.forEach((f) => {
+      q.push({ x: t.x + t.w * f, y: t.y + o });
+      q.push({ x: t.x + t.w * f, y: t.y + t.h - o });
+    });
+  }
+  return q.map((p, k) => ({ x: p.x, y: p.y, score: k }));
+}
 // Dibuja un punto verde por persona en los mejores asientos de cada mesa.
 function drawDots(g) {
   if (!SIT) return;
@@ -2684,7 +2726,10 @@ function drawDots(g) {
   for (const [u, ol] of byU) {
     let sl = [];
     ol.forEach((o) => {
-      let q2 = seatSlots(o.t).filter((q) => o.cols.includes(seatCol(o.t, q)));
+      let q2 =
+        isFV(o.t) && ol.length === 1 && u.pax > 4
+          ? vipSeats6(o.t, u.pax)
+          : seatSlots(o.t).filter((q) => o.cols.includes(seatCol(o.t, q)));
       if (u.pax === 1 && o.t.occ.length > 1) {
         const sd = singleSide(o.t, u);
         if (sd) q2 = q2.filter((q) => sideKey(o.t, q) === sd);
@@ -2906,7 +2951,7 @@ function placeUnit(u, dst) {
     status("Ese VIP está ocupado.", "warn");
     return;
   }
-  if (isFV(dst) && u.pax > 4) {
+  if (isFV(dst) && u.pax > dst.cap) {
     status("Grupo de más de 4 en VIP: muévelo arrastrando desde su mesa actual.", "warn");
     return;
   }
@@ -2974,8 +3019,8 @@ function sitUp(e) {
   }
   if (!v) {
     // mover a libre: grupos multi-mesa necesitan mesas vecinas libres
-    let need = isFV(dst) ? Math.ceil(u.pax / 4) : 1;
-    const cap = isFV(dst) ? need * 4 : dst.cap;
+    let need = isFV(dst) ? (dst.cap >= u.pax ? 1 : Math.ceil(u.pax / 4)) : 1;
+    const cap = isFV(dst) ? (need === 1 ? dst.cap : need * 4) : dst.cap;
     if (!isFV(dst) && dst.cap < u.pax) {
       status("No caben: " + u.pax + " personas en una mesa de " + dst.cap + ".", "warn");
       return;
