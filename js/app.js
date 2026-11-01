@@ -2643,7 +2643,7 @@ function seatSlots(t) {
   if (long) {
     const far = { a: [t.x, t.y + t.h], b: [t.x + t.w, t.y + t.h], n: [0, 1] },
       near = { a: [t.x, t.y], b: [t.x + t.w, t.y], n: [0, -1] };
-    const sides = one ? [t.cy > STAGE.y ? far : near] : [far, near];
+    const sides = one ? [t.floor === "p2" && t.cy <= STAGE.y ? near : far] : [far, near];
     for (const s of sides) side(s.a[0], s.a[1], s.b[0], s.b[1], s.n[0], s.n[1], nS);
   } else {
     const left = { a: [t.x, t.y], b: [t.x, t.y + t.h], n: [-1, 0] },
