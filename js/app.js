@@ -1727,7 +1727,8 @@ async function runSitting(resv) {
   let lo,
     hi,
     lastSide = null,
-    curveFree = 0;
+    curveFree = 0,
+    cenFree = 0;
   function resetBarra() {
     seats.forEach((x) => {
       x.unit = null;
@@ -1761,8 +1762,9 @@ async function runSitting(resv) {
     const lExt = mid - lo,
       rExt = hi - (mid - 1);
     const solo = (x) => x && x.unit && x.unit.pax === 1 && u.pax === 1; // dos personas solas nunca hombro con hombro: entre ellas la silla libre se mantiene
-    const gL = curveFree > 0 && seats[lo - 1] && seats[lo - 1].zone !== "central" && !solo(seats[lo]) ? 0 : 1,
-      gR = curveFree > 0 && seats[hi + 1] && seats[hi + 1].zone !== "central" && !solo(seats[hi]) ? 0 : 1;
+    const free_ = (x) => x && (x.zone !== "central" ? curveFree > 0 : cenFree > 0);
+    const gL = free_(seats[lo - 1]) && !solo(seats[lo]) ? 0 : 1,
+      gR = free_(seats[hi + 1]) && !solo(seats[hi]) ? 0 : 1;
     const canL = lo - gL - need >= 0,
       canR = hi + gR + need <= nS - 1;
     let side = null;
@@ -1776,12 +1778,16 @@ async function runSitting(resv) {
     if (!side) return false;
     lastSide = side;
     let run;
+    const use_ = (x) => {
+      if (x.zone !== "central") curveFree--;
+      else cenFree--;
+    };
     if (side === "L") {
-      if (!gL) curveFree--;
+      if (!gL) use_(seats[lo - 1]);
       run = seats.slice(lo - gL - need, lo - gL).reverse();
       lo -= need + gL;
     } else {
-      if (!gR) curveFree--;
+      if (!gR) use_(seats[hi + 1]);
       run = seats.slice(hi + 1 + gR, hi + 1 + gR + need);
       hi += need + gR;
     }
@@ -1829,7 +1835,8 @@ async function runSitting(resv) {
       ...sgl(shows),
     ];
     let failed = runBarra(order),
-      kBest = 0;
+      kBest = 0,
+      cBest = 0;
     // Show que no cabe en la barra: mesas de la planta alta
     // Show que no cabe en la barra: primero las mesas de 2 junto a los sillones (mejor visibilidad)
     const p2two = p2t.filter((t) => t.type === "m4u"),
@@ -1862,11 +1869,38 @@ async function runSitting(resv) {
       kBest = best;
       failed = runBarra(rest);
       curveFree = 0;
-      if (best)
+      // si aún falta sitio, también se quitan las separaciones del tramo central
+      let cb = 0;
+      if (failed.length) {
+        let bf = pax(failed);
+        for (let k = 1; k <= nS && bf > 0; k++) {
+          curveFree = nS;
+          cenFree = k;
+          const f = pax(runBarra(rest));
+          const left = cenFree;
+          if (left > 0) break;
+          if (f < bf) {
+            bf = f;
+            cb = k;
+          }
+        }
+        if (cb) {
+          kBest = nS;
+          cBest = cb;
+          curveFree = nS;
+          cenFree = cb;
+          failed = runBarra(rest);
+        }
+        curveFree = 0;
+        cenFree = 0;
+      }
+      if (best || cb)
         warn.push(
           "Sala llena: se han quitado " +
-            best +
-            " sillas de separación en las curvas y laterales de la barra (empezando por las más cercanas al centro)",
+            (cb
+              ? "las separaciones de las curvas y laterales y " + cb + " del tramo central"
+              : best + " sillas de separación en las curvas y laterales") +
+            " de la barra",
         );
     }
     // General que baja a planta baja: compartir mesa de 4, 6 u 8 (las personas solas, nunca cara a cara ni hombro con hombro con otra persona sola)
@@ -1902,8 +1936,10 @@ async function runSitting(resv) {
         if (!downGeneral(u)) break;
         cur = cur.filter((x) => x !== u);
         curveFree = kBest;
+        cenFree = cBest;
         failed = runBarra(cur);
         curveFree = 0;
+        cenFree = 0;
       }
     }
     // después las mesas laterales del anfiteatro y, como última opción, los sillones
