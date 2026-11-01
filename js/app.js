@@ -1151,6 +1151,7 @@ function seatCol(t, q) {
 function fitCols(u, t, share) {
   const k = colsNeed(u, t);
   if (nCols(t) === 1) return occOf(t).length || t.cap < u.pax ? null : [0];
+  if (t.type === "m4u" && occOf(t).length) return null; // las mesas de 2 nunca se comparten (dos personas solas no se sientan juntas)
   if (occOf(t).length) {
     if (!share || !occOf(t).every((o) => compat(o.u, u))) return null;
   }
@@ -1368,6 +1369,27 @@ async function runSitting(resv) {
     });
   // 2. Premium (mesas de 8 alrededor de la pasarela; nunca en VIP)
   const isPrem = (t) => t.type === "m8";
+  // Persona sola en mesa compartida: ocupa su propia pareja de sillas; con otra persona sola al lado, en diagonal (nunca cara a cara ni hombro con hombro)
+  function placeSingle(u, pool) {
+    let best = null;
+    for (const t of pool) {
+      if (nCols(t) < 2) continue;
+      if (occOf(t).length && !occOf(t).every((o) => compat(o.u, u))) continue;
+      const used = usedCols(t);
+      const solo = (c) => occOf(t).some((o) => o.u.pax === 1 && o.cols.length === 1 && o.cols[0] === c);
+      for (const c of colOrder(t)) {
+        if (used.has(c) || (solo(c - 1) && solo(c + 1))) continue;
+        const sc = t.dist + (occOf(t).length ? 0 : 3);
+        if (!best || sc < best.sc) best = { t, c, sc };
+        break;
+      }
+    }
+    if (!best) return false;
+    const sh = occOf(best.t).length > 0;
+    addOcc(best.t, u, [best.c]);
+    u.where.push(best.t.id + " (" + T[best.t.type].n + ")" + (sh ? " · compartida" : ""));
+    return true;
+  }
   function placeOnTables(u, pool, share) {
     // una mesa: la que deja menos sillas vacías y está más cerca del escenario
     let best = null;
@@ -1427,9 +1449,10 @@ async function runSitting(resv) {
   }
   // 3. General: huecos Premium sobrantes (más cerca de la pasarela) → mesas General → barra del anfiteatro (centro). Con PMR: barra.
   const toBarra = [];
+  const isTwo = (t) => t.type === "m4u";
+  let front, back;
   {
-    const isTwo = (t) => t.type === "m4u",
-      pairs = [],
+    const pairs = [],
       singles = [];
     // Mesas detrás de los VIP laterales (hacia la pared): no son prioridad. Solo se usan cuando las de delante (incluso compartiendo) están llenas, y de la más lejana al escenario a la más cercana.
     const latV = vips.filter((v) => v.w < v.h),
@@ -1440,8 +1463,8 @@ async function runSitting(resv) {
       ((latL.length && t.cx < Math.min(...latL.map((v) => v.x))) ||
         (latR.length && t.cx > Math.max(...latR.map((v) => v.x + v.w))));
     mesas.filter(isBL).forEach((t) => (t.dist = 1000 - 10 * t.cy));
-    const front = mesas.filter((t) => !isBL(t)),
-      back = mesas.filter(isBL);
+    front = mesas.filter((t) => !isBL(t));
+    back = mesas.filter(isBL);
     for (const u of units
       .filter((u) => u.cat === "General")
       .sort((a, b) => (b.pmr > 0) - (a.pmr > 0) || !!b.staff - !!a.staff || b.pax - a.pax)) {
@@ -1488,19 +1511,10 @@ async function runSitting(resv) {
     for (const u of pairs) {
       if (!placeOnTables(u, front.filter(isTwo))) toBarra.push(u);
     }
+    // personas solas: mesa de 2 libre de planta baja; si no hay, al anfiteatro
     for (const u of singles) {
-      if (placeOnTables(u, front.filter(isTwo))) continue;
-      if (placeOnTables(u, front.filter(isPrem))) {
-        u.where[u.where.length - 1] += " · hueco Premium";
-        continue;
-      }
-      if (
-        !placeOnTables(
-          u,
-          front.filter((t) => !isPrem(t)),
-        )
-      )
-        toBarra.push(u);
+      if (placeOnTables(u, mesas.filter(isTwo))) continue;
+      toBarra.push(u);
     }
     // planta baja ante todo: compartir mesas General de delante → mesas de detrás de los VIP laterales (propias y después compartidas) → huecos de las mesas Premium
     const hasPrem = (t) => occOf(t).some((o) => o.u.cat === "Premium");
@@ -1511,7 +1525,7 @@ async function runSitting(resv) {
       [mesas.filter(hasPrem), true, " con Premium"],
     ];
     for (const [pool, sh, tag] of steps) {
-      const left = toBarra.filter((u) => !u.pmr).sort((a, b) => b.pax - a.pax);
+      const left = toBarra.filter((u) => !u.pmr && u.pax > 1).sort((a, b) => b.pax - a.pax);
       for (const u of left) {
         if (
           placeOnTables(
@@ -1566,8 +1580,9 @@ async function runSitting(resv) {
     }
     const lExt = mid - lo,
       rExt = hi - (mid - 1);
-    const gL = curveFree > 0 && seats[lo - 1] && seats[lo - 1].zone !== "central" ? 0 : 1,
-      gR = curveFree > 0 && seats[hi + 1] && seats[hi + 1].zone !== "central" ? 0 : 1;
+    const solo = (x) => x && x.unit && x.unit.pax === 1 && u.pax === 1; // dos personas solas nunca hombro con hombro: entre ellas la silla libre se mantiene
+    const gL = curveFree > 0 && seats[lo - 1] && seats[lo - 1].zone !== "central" && !solo(seats[lo]) ? 0 : 1,
+      gR = curveFree > 0 && seats[hi + 1] && seats[hi + 1].zone !== "central" && !solo(seats[hi]) ? 0 : 1;
     const canL = lo - gL - need >= 0,
       canR = hi + gR + need <= nS - 1;
     let side = null;
@@ -1633,7 +1648,8 @@ async function runSitting(resv) {
       ...grp(shows),
       ...sgl(shows),
     ];
-    let failed = runBarra(order);
+    let failed = runBarra(order),
+      kBest = 0;
     // Show que no cabe en la barra: mesas de la planta alta
     // Show que no cabe en la barra: primero las mesas de 2 junto a los sillones (mejor visibilidad)
     const p2two = p2t.filter((t) => t.type === "m4u"),
@@ -1663,6 +1679,7 @@ async function runSitting(resv) {
         }
       }
       curveFree = best;
+      kBest = best;
       failed = runBarra(rest);
       curveFree = 0;
       if (best)
@@ -1672,6 +1689,43 @@ async function runSitting(resv) {
             " sillas de separación en las curvas y laterales de la barra (empezando por las más cercanas al centro)",
         );
     }
+    // General que baja a planta baja: compartir mesa de 4, 6 u 8 (las personas solas, nunca cara a cara ni hombro con hombro con otra persona sola)
+    function downGeneral(u) {
+      const hp = (t) => occOf(t).some((o) => o.u.cat === "Premium"),
+        nt = mesas.filter((t) => t.type !== "m4u");
+      for (const [pool, tag] of [
+        [front.filter((t) => t.type !== "m4u" && !hp(t)), ""],
+        [back.filter((t) => t.type !== "m4u"), ""],
+        [nt.filter(hp), " con Premium"],
+      ]) {
+        const ok = u.pax === 1 ? placeSingle(u, pool) : placeOnTables(u, pool, true);
+        if (ok) {
+          if (tag) u.where[u.where.length - 1] += tag;
+          return true;
+        }
+      }
+      return false;
+    }
+    // Si aún falta sitio para Show en la barra, las personas solas de General le dejan la barra y bajan a compartir mesa (de la más exterior a la más central)
+    if (failed.some((u) => u.cat === "Show")) {
+      const onT = new Set(p2t.filter((t) => t.unit).map((t) => t.unit));
+      let cur = order.filter((u) => !onT.has(u));
+      const sol = cur.filter((u) => u.cat === "General" && u.pax === 1 && !u.pmr && !failed.includes(u));
+      sol.sort(
+        (a, b) =>
+          Math.abs(Math.min(...seats.filter((x) => x.unit === b).map((x) => x.i)) - mid) -
+          Math.abs(Math.min(...seats.filter((x) => x.unit === a).map((x) => x.i)) - mid),
+      );
+      for (const u of sol) {
+        if (!failed.some((f) => f.cat === "Show")) break;
+        u.where = u.where.filter((w) => !w.startsWith("Barra"));
+        if (!downGeneral(u)) break;
+        cur = cur.filter((x) => x !== u);
+        curveFree = kBest;
+        failed = runBarra(cur);
+        curveFree = 0;
+      }
+    }
     // después las mesas laterales del anfiteatro y, como última opción, los sillones
     failed = failed.filter((u) => {
       if (u.cat === "Show" && (placeOnTables(u, p2lat) || placeOnTables(u, [...p2two, ...p2lat], true))) {
@@ -1680,6 +1734,8 @@ async function runSitting(resv) {
       }
       return true;
     });
+    // General que no cabe en el anfiteatro (personas solas): compartir mesa de 4, 6 u 8 en planta baja (nunca cara a cara ni hombro con hombro con otra persona sola)
+    failed = failed.filter((u) => !(u.cat === "General" && downGeneral(u)));
     failed.forEach((u) => {
       if (placeOnTables(u, sill)) {
         u.where[u.where.length - 1] += " · planta alta";
@@ -1717,6 +1773,14 @@ async function runSitting(resv) {
   other.forEach((u) => {
     u.note = "Categoría desconocida";
     warn.push("Categoría desconocida: " + u.cat + " (" + u.name + ")");
+  });
+  tabs.forEach((t) => {
+    if (occOf(t).length > 1)
+      t.occ.forEach((o) => {
+        o.u.where = o.u.where.map((w) =>
+          w.startsWith(t.id + " (") && !w.includes("compartida") ? w + " · compartida" : w,
+        );
+      });
   });
   const tmap = {};
   tabs.forEach((t) => {
@@ -2170,6 +2234,27 @@ function drawShared(g, t) {
     }
   }
 }
+function sideKey(t, q) {
+  return t.w >= t.h ? (q.y > t.cy ? "b" : "a") : q.x > t.cx ? "b" : "a";
+}
+function singleSide(t, u) {
+  const sl = seatSlots(t),
+    pref = {};
+  sl.forEach((q) => {
+    const c = seatCol(t, q);
+    if (!pref[c] || q.score < pref[c].score) pref[c] = q;
+  });
+  const side = {};
+  for (const c of colOrder(t)) {
+    const o = t.occ.find((o) => o.cols.length === 1 && o.cols[0] === c && o.u.pax === 1);
+    if (!o) continue;
+    let sd = pref[c] ? sideKey(t, pref[c]) : "a";
+    if (side[c - 1] === sd || side[c + 1] === sd) sd = sd === "a" ? "b" : "a";
+    side[c] = sd;
+    if (o.u === u) return sd;
+  }
+  return null;
+}
 // Dibuja un punto verde por persona en los mejores asientos de cada mesa.
 function drawDots(g) {
   if (!SIT) return;
@@ -2183,7 +2268,14 @@ function drawDots(g) {
   }
   for (const [u, ol] of byU) {
     let sl = [];
-    ol.forEach((o) => (sl = sl.concat(seatSlots(o.t).filter((q) => o.cols.includes(seatCol(o.t, q))))));
+    ol.forEach((o) => {
+      let q2 = seatSlots(o.t).filter((q) => o.cols.includes(seatCol(o.t, q)));
+      if (u.pax === 1 && o.t.occ.length > 1) {
+        const sd = singleSide(o.t, u);
+        if (sd) q2 = q2.filter((q) => sideKey(o.t, q) === sd);
+      }
+      sl = sl.concat(q2);
+    });
     sl.sort((a, b) => a.score - b.score);
     sl.slice(0, u.pax).forEach((s) =>
       el(
