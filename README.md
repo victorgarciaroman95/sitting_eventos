@@ -20,7 +20,7 @@ sitting_eventos/
 ├── js/app.js              Toda la lógica: editor del plano, sitting automático y dibujo
 └── ejemplos/              Excel de reservas de prueba
     ├── reservas-sala-scala.xlsx   47 reservas de prueba (plantilla con instrucciones)
-    └── reservas-sala-llena.xlsx   84 reservas que llenan toda la sala
+    └── reservas-sala-llena.xlsx   90 reservas que llenan toda la sala (plano definitivo)
 ```
 
 ## Uso diario
