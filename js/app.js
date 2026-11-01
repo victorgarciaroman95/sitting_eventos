@@ -1927,7 +1927,22 @@ function seatSlots(t) {
   // Cara a cara: se ocupan las sillas por parejas enfrentadas (las dos sillas de la misma posición a lo largo de la mesa), empezando por la posición más lejana al escenario; si sobra una persona, va al lado con visión al escenario
   const colD = (s) =>
     long ? Math.hypot(STAGE.x - s.x, STAGE.y - t.cy) : Math.hypot(STAGE.x - t.cx, STAGE.y - s.y);
-  return out.map((s) => ({ x: s.x, y: s.y, score: -Math.round(colD(s) * 100) * 10 + (pref(s) ? 0 : 1) }));
+  // Lejos del escenario solo en las mesas de delante de los VIP; en las de detrás de los VIP (centrales o laterales), primero lo más cercano al escenario
+  const sg = behindVip(t) ? 1 : -1;
+  return out.map((s) => ({ x: s.x, y: s.y, score: sg * Math.round(colD(s) * 100) * 10 + (pref(s) ? 0 : 1) }));
+}
+function behindVip(t) {
+  if (t.floor && t.floor !== "base") return false;
+  const v = (SIT ? SIT.tabs : []).filter((x) => x.type === "vip" && x.floor === "base");
+  if (!v.length) return false;
+  const cen = v.filter((x) => x.w >= x.h),
+    lat = v.filter((x) => x.w < x.h);
+  if (cen.length && t.cy > Math.max(...cen.map((x) => x.y + x.h))) return true;
+  const L = lat.filter((x) => x.cx < STAGE.x),
+    R = lat.filter((x) => x.cx >= STAGE.x);
+  if (L.length && t.cx < Math.min(...L.map((x) => x.x))) return true;
+  if (R.length && t.cx > Math.max(...R.map((x) => x.x + x.w))) return true;
+  return false;
 }
 // Dibuja un punto verde por persona en los mejores asientos de cada mesa.
 function drawDots(g) {
