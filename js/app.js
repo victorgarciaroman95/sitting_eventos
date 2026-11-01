@@ -1077,6 +1077,85 @@ function rectGap(a, b) {
     dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
   return Math.hypot(dx, dy);
 }
+// ---- Mesas compartidas: cada mesa se divide en columnas (parejas de sillas enfrentadas). Una reserva ocupa columnas seguidas, nunca se separa.
+var VIPS = [];
+function nCols(t) {
+  return t.type === "m4u"
+    ? 2
+    : t.type === "vip" || (T[t.type] && T[t.type].sofa) || t.type === "r60"
+      ? 1
+      : Math.max(1, Math.round(t.cap / 2));
+}
+function perCol(t) {
+  return t.type === "m4u" ? 1 : nCols(t) === 1 ? t.cap : 2;
+}
+function colsNeed(u, t) {
+  return Math.ceil(u.pax / perCol(t));
+}
+function occOf(t) {
+  return t.occ || (t.occ = []);
+}
+function syncT(t) {
+  t.unit = occOf(t).length ? t.occ[0].u : null;
+}
+function usedCols(t) {
+  const z = new Set();
+  occOf(t).forEach((o) => o.cols.forEach((c) => z.add(c)));
+  return z;
+}
+function colOrder(t) {
+  const n = nCols(t),
+    idx = [...Array(n).keys()];
+  if (n < 2) return idx;
+  const long = t.w >= t.h;
+  const cc = (k) => {
+    const f = (k + 0.5) / n;
+    return long
+      ? Math.hypot(STAGE.x - (t.x + t.w * f), STAGE.y - t.cy)
+      : Math.hypot(STAGE.x - t.cx, STAGE.y - (t.y + t.h * f));
+  };
+  const d0 = cc(0),
+    d1 = cc(n - 1),
+    rev = behindVip(t) ? d1 < d0 : d1 > d0;
+  return rev ? idx.reverse() : idx;
+}
+function findRun(t, k) {
+  if (k > nCols(t)) return null;
+  const ord = colOrder(t),
+    used = usedCols(t);
+  for (let i = 0; i + k <= ord.length; i++) {
+    const r = ord.slice(i, i + k);
+    if (r.every((c) => !used.has(c))) return r;
+  }
+  return null;
+}
+function addOcc(t, u, cols) {
+  occOf(t).push({ u, cols: cols || [...Array(nCols(t)).keys()] });
+  syncT(t);
+}
+function remOcc(t, u) {
+  t.occ = occOf(t).filter((o) => o.u !== u);
+  syncT(t);
+}
+function compat(a, b) {
+  if (a.cat === b.cat) return a.cat === "Premium" || a.cat === "General" || a.cat === "Show";
+  return ["Premium", "General"].includes(a.cat) && ["Premium", "General"].includes(b.cat);
+}
+function seatCol(t, q) {
+  const n = nCols(t);
+  if (n < 2) return 0;
+  const long = t.w >= t.h,
+    f = long ? (q.x - t.x) / t.w : (q.y - t.y) / t.h;
+  return Math.max(0, Math.min(n - 1, Math.floor(f * n)));
+}
+function fitCols(u, t, share) {
+  const k = colsNeed(u, t);
+  if (nCols(t) === 1) return occOf(t).length || t.cap < u.pax ? null : [0];
+  if (occOf(t).length) {
+    if (!share || !occOf(t).every((o) => compat(o.u, u))) return null;
+  }
+  return findRun(t, k);
+}
 // SITTING AUTOMÁTICO: reparte las reservas en mesas y en la barra siguiendo las reglas de Sala Scala.
 // Orden: VIP → Premium → Invitaciones/personal → General → barra del anfiteatro (General y Show).
 async function runSitting(resv) {
@@ -1106,6 +1185,8 @@ async function runSitting(resv) {
   tabs.forEach((t) => (t.dist = Math.hypot(t.cx - tip.x, t.cy - tip.y)));
   const vips = tabs.filter((t) => t.type === "vip"),
     mesas = tabs.filter((t) => t.type !== "vip");
+  VIPS = vips;
+  tabs.forEach((t) => (t.occ = []));
   {
     const row = vips.filter((v) => v.w >= v.h);
     if (row.length) {
@@ -1266,15 +1347,13 @@ async function runSitting(resv) {
         for (let i = 0; i + k <= blk.length; i++) {
           const run = blk.slice(i, i + k);
           if (run.every((v) => !v.unit)) {
-            let free = 0;
-            for (const v of blk) if (!v.unit) free++;
             cands.push({ run, score: (blk.length >= 9 ? 0 : 1) * 100 + i });
           }
         }
       cands.sort((a, b) => a.score - b.score);
       if (cands.length) {
         const run = cands[0].run;
-        run.forEach((v) => (v.unit = u));
+        run.forEach((v) => addOcc(v, u));
         u.where.push(run.map((v) => v.id).join("+"));
         done = true;
       }
@@ -1286,16 +1365,26 @@ async function runSitting(resv) {
     });
   // 2. Premium (mesas de 8 alrededor de la pasarela; nunca en VIP)
   const isPrem = (t) => t.type === "m8";
-  function placeOnTables(u, pool) {
-    const free = pool.filter((t) => !t.unit);
-    const sc = (t) => t.dist + 1.5 * (t.cap - u.pax);
-    const single = free.filter((t) => t.cap >= u.pax).sort((a, b) => sc(a) - sc(b))[0];
-    if (single) {
-      single.unit = u;
-      u.where.push(single.id + " (" + T[single.type].n + ")");
+  function placeOnTables(u, pool, share) {
+    // una mesa: la que deja menos sillas vacías y está más cerca del escenario
+    let best = null;
+    for (const t of pool) {
+      const cols = fitCols(u, t, share);
+      if (!cols) continue;
+      const waste =
+        (nCols(t) - usedCols(t).size - cols.length) * perCol(t) + (cols.length * perCol(t) - u.pax);
+      const sc = t.dist + 1.5 * (share ? waste : t.cap - u.pax);
+      if (!best || sc < best.sc) best = { t, cols, sc };
+    }
+    if (best) {
+      const sh = occOf(best.t).length > 0;
+      addOcc(best.t, u, best.cols);
+      u.where.push(best.t.id + " (" + T[best.t.type].n + ")" + (sh ? " · compartida" : ""));
       return true;
     }
-    let best = null;
+    // dos mesas vacías pegadas
+    const free = pool.filter((t) => !occOf(t).length && nCols(t) > 1);
+    let b2 = null;
     for (let i = 0; i < free.length; i++)
       for (let j = i + 1; j < free.length; j++) {
         const a = free[i],
@@ -1304,21 +1393,28 @@ async function runSitting(resv) {
         const c = a.cap + b.cap;
         if (c < u.pax) continue;
         const s2 = (c - u.pax) * 10 + Math.min(a.dist, b.dist);
-        if (!best || s2 < best.sc) best = { a, b, sc: s2 };
+        if (!b2 || s2 < b2.sc) b2 = { a, b, sc: s2 };
       }
-    if (best) {
-      best.a.unit = u;
-      best.b.unit = u;
-      u.where.push(best.a.id + "+" + best.b.id + " (mesas juntas)");
+    if (b2) {
+      addOcc(b2.a, u);
+      addOcc(b2.b, u);
+      u.where.push(b2.a.id + "+" + b2.b.id + " (mesas juntas)");
       return true;
     }
     return false;
   }
-  for (const u of units.filter((u) => u.cat === "Premium").sort((a, b) => b.pax - a.pax)) {
-    if (u.pmr) warn.push("PMR en Premium: " + u.name + " – revisar accesibilidad de su mesa");
-    if (!placeOnTables(u, mesas.filter(isPrem))) {
-      warn.push("Premium sin hueco en las mesas de 8: " + u.name + " (" + u.pax + " pax)");
-      u.note = "Sin ubicar";
+  {
+    const pf = [];
+    for (const u of units.filter((u) => u.cat === "Premium").sort((a, b) => b.pax - a.pax)) {
+      if (u.pmr) warn.push("PMR en Premium: " + u.name + " – revisar accesibilidad de su mesa");
+      if (!placeOnTables(u, mesas.filter(isPrem), false)) pf.push(u);
+    }
+    // si no caben todas en mesas propias, se comparten mesas de 8 entre reservas Premium
+    for (const u of pf) {
+      if (!placeOnTables(u, mesas.filter(isPrem), true)) {
+        warn.push("Premium sin hueco en las mesas de 8: " + u.name + " (" + u.pax + " pax)");
+        u.note = "Sin ubicar";
+      }
     }
   }
   // 3. General: huecos Premium sobrantes (más cerca de la pasarela) → mesas General → barra del anfiteatro (centro). Con PMR: barra.
@@ -1386,6 +1482,21 @@ async function runSitting(resv) {
         )
       )
         toBarra.push(u);
+    }
+    // planta baja ante todo: si quedan General sin mesa propia, se comparten mesas con otras reservas General y, si aún quedan, se usan los huecos de las mesas Premium
+    const left = toBarra.filter((u) => !u.pmr).sort((a, b) => b.pax - a.pax);
+    for (const u of left) {
+      const hasPrem = (t) => occOf(t).some((o) => o.u.cat === "Premium");
+      if (
+        placeOnTables(
+          u,
+          mesas.filter((t) => !hasPrem(t)),
+          true,
+        ) ||
+        (placeOnTables(u, mesas.filter(hasPrem), true) &&
+          ((u.where[u.where.length - 1] += " con Premium"), true))
+      )
+        toBarra.splice(toBarra.indexOf(u), 1);
     }
   }
   // 4. Barra del anfiteatro de dentro hacia fuera (General en el centro, después Show), con una silla libre entre reservas.
@@ -1497,8 +1608,11 @@ async function runSitting(resv) {
     ];
     let failed = runBarra(order);
     // Show que no cabe en la barra: mesas de la planta alta
+    // Show que no cabe en la barra: primero las mesas de 2 junto a los sillones (mejor visibilidad)
+    const p2two = p2t.filter((t) => t.type === "m4u"),
+      p2lat = p2t.filter((t) => t.type !== "m4u");
     failed = failed.filter((u) => {
-      if (u.cat === "Show" && placeOnTables(u, p2t)) {
+      if (u.cat === "Show" && placeOnTables(u, p2two)) {
         u.where[u.where.length - 1] += " · planta alta";
         return false;
       }
@@ -1531,6 +1645,14 @@ async function runSitting(resv) {
             " sillas de separación en las curvas y laterales de la barra (empezando por las más cercanas al centro)",
         );
     }
+    // después las mesas laterales del anfiteatro y, como última opción, los sillones
+    failed = failed.filter((u) => {
+      if (u.cat === "Show" && (placeOnTables(u, p2lat) || placeOnTables(u, [...p2two, ...p2lat], true))) {
+        u.where[u.where.length - 1] += " · planta alta";
+        return false;
+      }
+      return true;
+    });
     failed.forEach((u) => {
       if (placeOnTables(u, sill)) {
         u.where[u.where.length - 1] += " · planta alta";
@@ -1571,7 +1693,7 @@ async function runSitting(resv) {
   });
   const tmap = {};
   tabs.forEach((t) => {
-    if (t.unit) tmap[t.key] = t;
+    if (occOf(t).length) tmap[t.key] = t;
   });
   SIT = { units, warn, tmap, seats, tabs, vipBlocks: blocks };
 }
@@ -1639,6 +1761,10 @@ function sitOverlay() {
   {
     const bdone = new Set();
     for (const t of Object.values(SIT.tmap).filter((t) => t.floor === FLOOR)) {
+      if (occOf(t).length > 1) {
+        drawShared(g, t);
+        continue;
+      }
       const c = CATC[t.unit.cat] || "#888";
       el(
         "rect",
@@ -1951,7 +2077,7 @@ function seatSlots(t) {
 }
 function behindVip(t) {
   if (t.floor && t.floor !== "base") return false;
-  const v = (SIT ? SIT.tabs : []).filter((x) => x.type === "vip" && x.floor === "base");
+  const v = VIPS;
   if (!v.length) return false;
   const cen = v.filter((x) => x.w >= x.h),
     lat = v.filter((x) => x.w < x.h);
@@ -1962,17 +2088,75 @@ function behindVip(t) {
   if (R.length && t.cx > Math.max(...R.map((x) => x.x + x.w))) return true;
   return false;
 }
+function drawShared(g, t) {
+  const long = t.w >= t.h,
+    n = nCols(t);
+  for (const o of t.occ) {
+    const u = o.u,
+      c = CATC[u.cat] || "#888",
+      a = Math.min(...o.cols),
+      b = Math.max(...o.cols) + 1;
+    const r = long
+      ? { x: t.x + (t.w * a) / n, y: t.y, w: (t.w * (b - a)) / n, h: t.h }
+      : { x: t.x, y: t.y + (t.h * a) / n, w: t.w, h: (t.h * (b - a)) / n };
+    el(
+      "rect",
+      {
+        x: X(r.x) + 0.6,
+        y: Y(r.y) + 0.6,
+        width: r.w * S - 1.2,
+        height: r.h * S - 1.2,
+        rx: 2,
+        fill: c,
+        "fill-opacity": 0.55,
+        stroke: u.pmr ? PMRC : c,
+        "stroke-width": u.pmr ? 2.2 : 1.3,
+      },
+      g,
+    );
+    const cx = X(r.x + r.w / 2),
+      cy = Y(r.y + r.h / 2);
+    el(
+      "text",
+      {
+        x: cx,
+        y: cy,
+        "text-anchor": "middle",
+        "dominant-baseline": "central",
+        "font-size": 6,
+        fill: "var(--txt)",
+        "font-weight": 600,
+        transform: long ? "" : "rotate(-90 " + cx + " " + cy + ")",
+      },
+      g,
+      u.res[0].nom.split(/[ ,]/)[0].slice(0, 6),
+    );
+    const nb = (hasAl(u) ? 1 : 0) + (u.cu ? 1 : 0);
+    if (nb) {
+      if (long) badges(g, cx - (nb - 1) * 5, Y(r.y), u);
+      else {
+        const ex = t.cx < STAGE.x ? X(r.x) : X(r.x + r.w);
+        let k = 0;
+        if (hasAl(u)) badgeOne(g, ex, cy + (k++ - (nb - 1) / 2) * 10, "al");
+        if (u.cu) badgeOne(g, ex, cy + (k - (nb - 1) / 2) * 10, "cu");
+      }
+    }
+  }
+}
 // Dibuja un punto verde por persona en los mejores asientos de cada mesa.
 function drawDots(g) {
   if (!SIT) return;
   const byU = new Map();
   for (const t of Object.values(SIT.tmap).filter((t) => t.floor === FLOOR)) {
-    if (!byU.has(t.unit)) byU.set(t.unit, []);
-    byU.get(t.unit).push(t);
+    for (const o of occOf(t)) {
+      if (!byU.has(o.u)) byU.set(o.u, []);
+      byU.get(o.u).push(o);
+      o.t = t;
+    }
   }
-  for (const [u, tl2] of byU) {
+  for (const [u, ol] of byU) {
     let sl = [];
-    tl2.forEach((t) => (sl = sl.concat(seatSlots(t))));
+    ol.forEach((o) => (sl = sl.concat(seatSlots(o.t).filter((q) => o.cols.includes(seatCol(o.t, q))))));
     sl.sort((a, b) => a.score - b.score);
     sl.slice(0, u.pax).forEach((s) =>
       el(
@@ -2048,8 +2232,14 @@ function sitDown(t, e) {
     );
     return;
   }
-  pmove = { from: st, unit: st.unit, p: pm(e) };
-  status("Moviendo " + st.unit.name + " (" + st.unit.pax + " pax)… suelta sobre otra mesa", "");
+  let mu = st.unit;
+  if (occOf(st).length > 1) {
+    const c = seatCol(st, pm(e)),
+      o = st.occ.find((o) => o.cols.includes(c));
+    if (o) mu = o.u;
+  }
+  pmove = { from: st, unit: mu, p: pm(e) };
+  status("Moviendo " + mu.name + " (" + mu.pax + " pax)… suelta sobre otra mesa", "");
   sitGhost();
 }
 // Círculo que sigue al dedo mientras se mueve una reserva.
@@ -2095,17 +2285,17 @@ function okFor(u, t) {
 }
 // Mesas que ocupa una reserva.
 function tablesOf(u) {
-  return SIT.tabs.filter((t) => t.unit === u);
+  return SIT.tabs.filter((t) => occOf(t).some((o) => o.u === u));
 }
 // Libera las mesas de una reserva.
 function freeTables(u) {
-  tablesOf(u).forEach((t) => (t.unit = null));
+  tablesOf(u).forEach((t) => remOcc(t, u));
 }
 // Recalcula ubicaciones y redibuja tras mover reservas a mano.
 function rebuild() {
   SIT.tmap = {};
   SIT.tabs.forEach((t) => {
-    if (t.unit) SIT.tmap[t.key] = t;
+    if (occOf(t).length) SIT.tmap[t.key] = t;
   });
   for (const u of SIT.units) {
     const ts2 = tablesOf(u);
@@ -2114,7 +2304,9 @@ function rebuild() {
       ts2.length
         ? [
             ts2.map((t) => t.id).join("+") +
-              (ts2.length > 1 ? " (mesas juntas)" : " (" + T[ts2[0].type].n + ")"),
+              (ts2.length > 1
+                ? " (mesas juntas)"
+                : " (" + T[ts2[0].type].n + ")" + (ts2[0].occ.length > 1 ? " · compartida" : "")),
           ]
         : [],
     );
@@ -2130,12 +2322,17 @@ function placeUnit(u, dst) {
     status("Esa mesa no admite la categoría " + u.cat + ".", "warn");
     return;
   }
-  if (dst.unit && dst.unit !== u) {
-    status("Esa mesa está ocupada. Arrastra desde otra mesa para intercambiar.", "warn");
+  if (u.cat !== "VIP" && !fitCols(u, dst, true)) {
+    status(
+      dst.unit
+        ? "En esa mesa no queda hueco para " + u.pax + " personas (o no se puede compartir con esa reserva)."
+        : "No caben: " + u.pax + " personas en una mesa de " + dst.cap + ".",
+      "warn",
+    );
     return;
   }
-  if (dst.cap < u.pax && u.cat !== "VIP") {
-    status("No caben: " + u.pax + " personas en una mesa de " + dst.cap + ".", "warn");
+  if (u.cat === "VIP" && dst.unit) {
+    status("Ese VIP está ocupado.", "warn");
     return;
   }
   if (u.cat === "VIP" && u.pax > 4) {
@@ -2154,8 +2351,8 @@ function placeUnit(u, dst) {
     u.mesaNo = null;
   }
   freeTables(u);
-  dst.unit = u;
-  status("Colocado " + u.name + " en " + dst.id + ".", "ok");
+  addOcc(dst, u, u.cat === "VIP" ? null : fitCols(u, dst, true));
+  status("Colocado " + u.name + " en " + dst.id + (occOf(dst).length > 1 ? " (compartida)" : "") + ".", "ok");
   rebuild();
 }
 // Al soltar una reserva: la mueve a una mesa libre o la intercambia con la de otra mesa.
@@ -2176,6 +2373,27 @@ function sitUp(e) {
     return;
   }
   const v = dst.unit;
+  // mesa con hueco: se comparte (Premium con Premium, General con General o con Premium)
+  if (v && u.cat !== "VIP" && !occOf(dst).some((o) => o.u === u)) {
+    const saved = src.map((t) => ({ t, o: t.occ.slice() }));
+    src.forEach((t) => remOcc(t, u));
+    const cols = fitCols(u, dst, true);
+    if (cols) {
+      addOcc(dst, u, cols);
+      status("Movido " + u.name + " a " + dst.id + " (mesa compartida).", "ok");
+      rebuild();
+      return;
+    }
+    saved.forEach((x) => {
+      x.t.occ = x.o;
+      syncT(x.t);
+    });
+  }
+  if (v && occOf(dst).length > 1) {
+    status("En esa mesa no queda hueco para " + u.pax + " personas.", "warn");
+    rebuild();
+    return;
+  }
   if (!v) {
     // mover a libre: grupos multi-mesa necesitan mesas vecinas libres
     let need = u.cat === "VIP" ? Math.ceil(u.pax / 4) : 1;
@@ -2193,10 +2411,10 @@ function sitUp(e) {
         return;
       }
       freeTables(u);
-      run.forEach((x) => (x.unit = u));
+      run.forEach((x) => addOcc(x, u));
     } else {
       freeTables(u);
-      dst.unit = u;
+      addOcc(dst, u, fitCols(u, dst, true));
     }
     status("Movido " + u.name + " a " + dst.id + ".", "ok");
     rebuild();
@@ -2212,12 +2430,14 @@ function sitUp(e) {
     status("No se puede intercambiar: categorías incompatibles.", "warn");
     return;
   }
-  if (src[0].cap < v.pax || dst.cap < u.pax) {
+  if (src[0].cap < v.pax || dst.cap < u.pax || occOf(src[0]).length > 1) {
     status("No se puede intercambiar: alguna de las dos reservas no cabe en la otra mesa.", "warn");
     return;
   }
-  src[0].unit = v;
-  dst.unit = u;
+  remOcc(src[0], u);
+  remOcc(dst, v);
+  addOcc(src[0], v, fitCols(v, src[0], true));
+  addOcc(dst, u, fitCols(u, dst, true));
   status("Intercambiadas " + u.name + " y " + v.name + ".", "ok");
   rebuild();
 }
