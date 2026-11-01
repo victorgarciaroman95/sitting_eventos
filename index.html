@@ -4,14 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sitting · Sala Scala</title>
-    <link rel="stylesheet" href="css/estilos.css?v=202611011609" />
+    <link rel="stylesheet" href="css/estilos.css?v=202611011623" />
   </head>
   <body>
     <main>
-      <div class="bar" id="tabs">
-        <button id="tab-base" onclick="switchFloor('base')">Planta baja</button
-        ><button id="tab-p2" onclick="switchFloor('p2')">Planta alta</button>
-      </div>
       <h1 id="ttl">Plano planta baja · distribución base</h1>
       <p class="sub">
         Cada cambio se guarda solo en este navegador. Usa «Exportar plano» para tener una copia. El plano
@@ -59,6 +55,11 @@
         <g id="tl"></g>
         <g id="sitfx" style="pointer-events: none"></g>
       </svg>
+      <!-- Botones para cambiar de planta (debajo del plano) -->
+      <div class="bar" id="tabs" style="margin-top: 8px">
+        <button id="tab-base" onclick="switchFloor('base')">Planta baja</button
+        ><button id="tab-p2" onclick="switchFloor('p2')">Planta alta</button>
+      </div>
       <div class="info"><span id="st">Cargando…</span><span id="cnt"></span><span id="sel"></span></div>
       <section id="sit">
         <h2>Sitting automático</h2>
@@ -86,12 +87,12 @@
         <!-- Ficha de una reserva (se abre al tocar una mesa, una silla de la barra o una fila de la lista) -->
         <div id="pop" class="pop" style="display: none"></div>
       </section>
-      <p id="version" class="sub" style="text-align:center;margin:24px 0 8px">Versión 01/11/2026 16:09</p>
+      <p id="version" class="sub" style="text-align:center;margin:24px 0 8px">Versión 01/11/2026 16:23</p>
     </main>
     <!-- Lector de Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Plano oficial (datos) y aplicación -->
-    <script src="js/plano-oficial.js?v=202611011609"></script>
-    <script src="js/app.js?v=202611011609"></script>
+    <script src="js/plano-oficial.js?v=202611011623"></script>
+    <script src="js/app.js?v=202611011623"></script>
   </body>
 </html>
