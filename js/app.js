@@ -1129,9 +1129,33 @@ async function runSitting(resv) {
   n = 0;
   [...mesas].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "M" + ++n));
   // Sillones de la planta alta (2 personas con mesa redonda): última opción para General y Show
-  const sill = [];
+  const sill = [],
+    p2t = [];
   (await floorData("p2")).forEach((d) => {
-    if (d[0] !== "sil4") return;
+    if (d[0] !== "sil4") {
+      if (T[d[0]] && T[d[0]].cap > 0 && d[0] !== "pt") {
+        const r = d[3] === "v",
+          w = r ? T[d[0]].h : T[d[0]].w,
+          h = r ? T[d[0]].w : T[d[0]].h,
+          cx = d[1] + w / 2,
+          cy = d[2] + h / 2;
+        p2t.push({
+          key: keyOf(d[0], d[1], d[2]),
+          floor: "p2",
+          type: d[0],
+          x: d[1],
+          y: d[2],
+          w,
+          h,
+          cap: T[d[0]].cap,
+          cx,
+          cy,
+          unit: null,
+          dist: Math.hypot(cx - 22.5, cy - 12.3),
+        });
+      }
+      return;
+    }
     const r = d[3] === "v",
       w = r ? T.sil4.h : T.sil4.w,
       h = r ? T.sil4.w : T.sil4.h,
@@ -1153,8 +1177,9 @@ async function runSitting(resv) {
     });
   });
   sill.sort((a, b) => a.x - b.x).forEach((t, k) => (t.id = "S" + (k + 1)));
+  p2t.sort((a, b) => a.x - b.x || a.y - b.y).forEach((t, k) => (t.id = "A" + (k + 1)));
   tabs.forEach((t) => (t.floor = "base"));
-  tabs.push(...sill);
+  tabs.push(...sill, ...p2t);
   // VIP blocks: chains of physically touching VIPs
   const blocks = [];
   const used = new Set();
@@ -1363,12 +1388,23 @@ async function runSitting(resv) {
         toBarra.push(u);
     }
   }
-  // 4. Barra del anfiteatro de dentro hacia fuera: General en el centro, una silla libre, Show a continuación
+  // 4. Barra del anfiteatro de dentro hacia fuera (General en el centro, después Show), con una silla libre entre reservas.
+  // Si la sala se llena, se quitan las separaciones de las curvas y laterales (el tramo central las mantiene).
   const nS = seats.length,
     mid = Math.floor(nS / 2);
-  let lo = mid,
+  let lo,
+    hi,
+    lastSide = null,
+    curveFree = 0;
+  function resetBarra() {
+    seats.forEach((x) => {
+      x.unit = null;
+      x.pmr = false;
+    });
+    lo = mid;
     hi = mid - 1;
-  let lastSide = null;
+    lastSide = null;
+  }
   function takeSide(u, force) {
     const need = u.pax - u.pmr + 2 * u.pmr;
     if (hi < lo) {
@@ -1392,9 +1428,10 @@ async function runSitting(resv) {
     }
     const lExt = mid - lo,
       rExt = hi - (mid - 1);
-    const g = hi >= lo ? 1 : 0;
-    const canL = lo - g - need >= 0,
-      canR = hi + g + need <= nS - 1;
+    const gL = curveFree > 0 && seats[lo - 1] && seats[lo - 1].zone !== "central" ? 0 : 1,
+      gR = curveFree > 0 && seats[hi + 1] && seats[hi + 1].zone !== "central" ? 0 : 1;
+    const canL = lo - gL - need >= 0,
+      canR = hi + gR + need <= nS - 1;
     let side = null;
     if (force === "L" && canL) side = "L";
     else if (force === "R" && canR) side = "R";
@@ -1407,23 +1444,43 @@ async function runSitting(resv) {
     lastSide = side;
     let run;
     if (side === "L") {
-      run = seats.slice(lo - g - need, lo - g).reverse();
-      lo -= need + g;
+      if (!gL) curveFree--;
+      run = seats.slice(lo - gL - need, lo - gL).reverse();
+      lo -= need + gL;
     } else {
-      run = seats.slice(hi + 1 + g, hi + 1 + g + need);
-      hi += need + g;
+      if (!gR) curveFree--;
+      run = seats.slice(hi + 1 + gR, hi + 1 + gR + need);
+      hi += need + gR;
     }
-    run.forEach((s, k) => {
-      s.unit = u;
-      s.pmr = k < 2 * u.pmr;
+    run.forEach((x, k) => {
+      x.unit = u;
+      x.pmr = k < 2 * u.pmr;
     });
-    const ids = run.map((s) => s.i + 1).sort((a, b) => a - b);
+    const ids = run.map((x) => x.i + 1).sort((a, b) => a - b);
     u.where.push(
       "Barra anfiteatro " +
         (ids.length > 1 ? "B" + ids[0] + "–B" + ids[ids.length - 1] : "B" + ids[0]) +
         (u.pmr ? " (" + u.pmr + " PMR)" : ""),
     );
     return true;
+  }
+  function runBarra(list) {
+    resetBarra();
+    let prevSingleCat = null,
+      sSide = null;
+    const failed = [];
+    list.forEach((u) => {
+      u.where = u.where.filter((w) => !w.startsWith("Barra"));
+      let force = null;
+      if (u.pax === 1 && !u.pmr && prevSingleCat === u.cat) force = sSide;
+      const ok = takeSide(u, force);
+      if (ok && u.pax === 1 && !u.pmr) {
+        prevSingleCat = u.cat;
+        sSide = lastSide;
+      }
+      if (!ok) failed.push(u);
+    });
+    return failed;
   }
   {
     const big = (a, b) => b.pax - a.pax,
@@ -1438,34 +1495,57 @@ async function runSitting(resv) {
       ...grp(shows),
       ...sgl(shows),
     ];
-    let prevSingleCat = null,
-      sSide = null;
-    order.forEach((u) => {
-      let force = null;
-      if (u.pax === 1 && !u.pmr) {
-        if (prevSingleCat === u.cat) force = sSide;
+    let failed = runBarra(order);
+    // Show que no cabe en la barra: mesas de la planta alta
+    failed = failed.filter((u) => {
+      if (u.cat === "Show" && placeOnTables(u, p2t)) {
+        u.where[u.where.length - 1] += " · planta alta";
+        return false;
       }
-      const ok = takeSide(u, force);
-      if (ok && u.pax === 1 && !u.pmr) {
-        prevSingleCat = u.cat;
-        sSide = lastSide;
+      return true;
+    });
+    // Sala llena: se quitan las separaciones de las curvas y laterales y se vuelve a repartir la barra
+    // de forma progresiva: primero las separaciones más cercanas al centro, hasta que quepan todos
+    if (failed.length) {
+      const onTables = new Set(p2t.filter((t) => t.unit).map((t) => t.unit)),
+        rest = order.filter((u) => !onTables.has(u)),
+        pax = (l) => l.reduce((a, u) => a + u.pax, 0);
+      let best = 0,
+        bestF = pax(failed);
+      for (let k = 1; k <= nS && bestF > 0; k++) {
+        curveFree = k;
+        const f = pax(runBarra(rest));
+        if (curveFree > 0) break;
+        if (f < bestF) {
+          bestF = f;
+          best = k;
+        }
       }
-      if (!ok && placeOnTables(u, sill)) {
+      curveFree = best;
+      failed = runBarra(rest);
+      curveFree = 0;
+      if (best)
+        warn.push(
+          "Sala llena: se han quitado " +
+            best +
+            " sillas de separación en las curvas y laterales de la barra (empezando por las más cercanas al centro)",
+        );
+    }
+    failed.forEach((u) => {
+      if (placeOnTables(u, sill)) {
         u.where[u.where.length - 1] += " · planta alta";
         return;
       }
-      if (!ok) {
-        warn.push(
-          (u.cat === "Show"
-            ? "Show sin hueco en la barra ni en los sillones: "
-            : "General sin hueco (ni en planta baja, ni en la barra, ni en los sillones): ") +
-            u.name +
-            " (" +
-            u.pax +
-            " pax)",
-        );
-        u.note = "Sin ubicar";
-      }
+      warn.push(
+        (u.cat === "Show"
+          ? "Show sin hueco en la barra, mesas de planta alta ni sillones: "
+          : "General sin hueco (ni en planta baja, ni en la barra, ni en los sillones): ") +
+          u.name +
+          " (" +
+          u.pax +
+          " pax)",
+      );
+      u.note = "Sin ubicar";
     });
   }
   {
@@ -1975,6 +2055,7 @@ function sitMove(e) {
 // ¿Puede ir esta reserva a esta mesa? (VIP solo a VIP, Premium solo a mesas de 8, General a todo menos VIP).
 function okFor(u, t) {
   if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
+  if (t.floor === "p2") return u.cat === "Show";
   if (u.cat === "VIP") return t.type === "vip";
   if (u.cat === "Premium") return t.type === "m8";
   if (u.cat === "General") return t.type !== "vip";
