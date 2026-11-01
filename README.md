@@ -76,7 +76,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
   - General con PMR, totalmente centrada; después Show con PMR a su lado;
   - luego el resto de General y, alrededor, el resto de Show;
   - las personas solas se agrupan en un mismo lado;
-  - siempre queda una silla libre entre reservas.
+  - se deja una silla libre entre reservas si hay sitio; con el anfiteatro lleno se quitan, primero en curvas y laterales (empezando por las más cercanas al centro) y, si aún falta, también en el tramo central. Entre dos personas solas se mantiene siempre.
 - **Sillones de la planta alta:** 7 sillones de 2 personas, cada uno con su mesa redonda delante. La visibilidad es muy mala, así que son la última opción para General y Show, cuando ya no queda sitio en la barra.
 - **Premium en VIP:** si las mesas de 8 se llenan, las reservas Premium de 3 o más van a los VIP que sobran (los VIP se llenan primero por la fila frontal y luego por los laterales más cercanos a ella).
 - **Mesas de detrás de los VIP laterales:** no son prioridad; antes se comparte mesa por delante de los VIP. Cuando hacen falta, se ocupan del fondo hacia el escenario.
