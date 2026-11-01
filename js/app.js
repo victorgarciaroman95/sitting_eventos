@@ -1233,13 +1233,17 @@ function numerar(vips, mesas, pt) {
     if (t.no != null) t.id = String(t.no);
   });
 }
+function isFV(t) {
+  return t.type === "vip" && t.w >= t.h;
+}
 function tType(t) {
+  if (t.type === "vip" && !isFV(t)) return "sillón lateral";
   return String(T[t.type].n)
     .replace(/^Mesa (\d)/, "mesa de $1")
     .replace(/^Sillón/, "sillón");
 }
 function tLabel(t) {
-  return t.no != null ? (t.type === "vip" ? "VIP " : "Mesa ") + t.no : t.id;
+  return t.no != null ? (isFV(t) ? "VIP " : "Mesa ") + t.no : t.id;
 }
 // SITTING AUTOMÁTICO: reparte las reservas en mesas y en la barra siguiendo las reglas de Sala Scala.
 // Orden: VIP → Premium → Invitaciones/personal → General → barra del anfiteatro (General y Show).
@@ -1268,9 +1272,12 @@ async function runSitting(resv) {
   });
   const tip = { x: 22.5, y: 14.64 };
   tabs.forEach((t) => (t.dist = Math.hypot(t.cx - tip.x, t.cy - tip.y)));
-  const vips = tabs.filter((t) => t.type === "vip"),
-    mesas = tabs.filter((t) => t.type !== "vip");
-  VIPS = vips;
+  // VIP = solo los 9 frontales. Los 6 «sillones laterales» (con forma de VIP) son mesas General de 4, que Premium usa primero cuando se llenan sus mesas.
+  const allV = tabs.filter((t) => t.type === "vip"),
+    vips = allV.filter((t) => t.w >= t.h),
+    lat = allV.filter((t) => t.w < t.h),
+    mesas = tabs.filter((t) => t.type !== "vip").concat(lat);
+  VIPS = allV;
   tabs.forEach((t) => (t.occ = []));
   {
     const row = vips.filter((v) => v.w >= v.h);
@@ -1293,11 +1300,24 @@ async function runSitting(resv) {
   let n = 0;
   [...vips].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "V" + ++n));
   n = 0;
-  [...mesas].sort((a, b) => a.y - b.y || a.x - b.x).forEach((t) => (t.id = "M" + ++n));
+  [...lat].sort((a, b) => a.x - b.x || a.y - b.y).forEach((t) => (t.id = "L" + ++n));
+  n = 0;
+  mesas
+    .filter((t) => t.type !== "vip")
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+    .forEach((t) => (t.id = "M" + ++n));
   {
     const pd = base.find((d) => d[0] === "pt");
-    numerar(vips, mesas, pd ? { x: pd[1], y: pd[2], w: T.pt.w, h: T.pt.h } : null);
+    numerar(
+      vips,
+      mesas.filter((t) => t.type !== "vip"),
+      pd ? { x: pd[1], y: pd[2], w: T.pt.w, h: T.pt.h } : null,
+    );
   }
+  // Mesas Premium: las 8 mesas de 8 verticales frente a la pasarela y la fila 100
+  tabs.forEach((t) => {
+    t.prem = (bt(t) === "m8" && t.h > t.w) || (t.no >= 100 && t.no < 200);
+  });
   // Sillones de la planta alta (2 personas con mesa redonda): última opción para General y Show
   const sill = [],
     p2t = [];
@@ -1458,7 +1478,7 @@ async function runSitting(resv) {
   const row = blocks.find((b) => b.length >= 9) || [],
     central =
       row.length >= 9 ? row.slice(Math.floor(row.length / 2) - 1, Math.floor(row.length / 2) + 2) : [];
-  const latV0 = vips.filter((v) => v.w < v.h),
+  const latV0 = lat,
     isBL0 = (t) =>
       t.type !== "vip" &&
       ((latV0.some((v) => v.cx < 22.5) &&
@@ -1512,7 +1532,7 @@ async function runSitting(resv) {
   {
     const best = tabs
       .filter((t) => t.floor === "base" && t.type !== "vip" && !isBL0(t))
-      .sort((a, b) => (bt(a) === "m8" ? 0 : 1) - (bt(b) === "m8" ? 0 : 1) || a.dist - b.dist);
+      .sort((a, b) => (a.prem ? 0 : 1) - (b.prem ? 0 : 1) || a.dist - b.dist);
     for (const u of units.filter((u) => u.gest === "Jefe de sala").sort((a, b) => b.pax - a.pax)) {
       if (vipBy(u, rowScore) || placeOnTables(u, best, false) || placeOnTables(u, best, true)) {
         u.where[u.where.length - 1] += gTag[u.gest];
@@ -1534,7 +1554,7 @@ async function runSitting(resv) {
       if (u.pmr) warn.push("PMR en VIP: " + u.name + " – revisar accesibilidad");
     });
   // 2. Premium (mesas de 8 alrededor de la pasarela; nunca en VIP)
-  const isPrem = (t) => bt(t) === "m8";
+  const isPrem = (t) => !!t.prem;
   // Persona sola en mesa compartida: ocupa su propia pareja de sillas; con otra persona sola al lado, en diagonal (nunca cara a cara ni hombro con hombro)
   function placeSingle(u, pool) {
     let best = null;
@@ -1601,7 +1621,7 @@ async function runSitting(resv) {
   // 3) Regidor: sus mesas → VIP vacíos → mesas General de dentro de los VIP
   regT.forEach((t) => remOcc(t, HOLD));
   {
-    const inner = tabs.filter((t) => t.floor === "base" && t.type !== "vip" && bt(t) !== "m8" && !isBL0(t));
+    const inner = tabs.filter((t) => t.floor === "base" && t.type !== "vip" && !t.prem && !isBL0(t));
     for (const u of regU.sort((a, b) => b.pax - a.pax)) {
       if (
         placeOnTables(u, regT, false) ||
@@ -1625,17 +1645,17 @@ async function runSitting(resv) {
     // si no caben todas en mesas propias, se comparten mesas de 8 entre reservas Premium
     // Premium que no cabe en mesa propia: las reservas de 3 o más van a los VIP que sobran (una por VIP); las de 1–2, o si no hay VIP libre, comparten mesa de 8
     for (const u of pf) {
-      if (u.pax >= 3 && placeVip(u)) {
-        u.where[u.where.length - 1] += " (VIP libre)";
+      if (placeOnTables(u, lat, false)) {
+        u.where[u.where.length - 1] += " · Premium";
         continue;
       }
       if (placeOnTables(u, mesas.filter(isPrem), true)) continue;
       // Premium que no cabe ni en las mesas de 8 ni en VIP: la mejor mesa General de delante de los VIP (más cercana al escenario), con aviso
-      const fr = mesas.filter((t) => bt(t) !== "m8" && t.type !== "m4u" && !isBL0(t));
+      const fr = mesas.filter((t) => !t.prem && t.type !== "m4u" && !isBL0(t));
       if (placeOnTables(u, fr, false) || placeOnTables(u, fr, true)) {
         u.where[u.where.length - 1] += " · Premium en mesa General";
         warn.push(
-          "Premium sin sitio en mesas de 8 ni VIP: " +
+          "Premium sin sitio en mesas Premium ni sillones laterales: " +
             u.name +
             " (" +
             u.pax +
@@ -1657,7 +1677,7 @@ async function runSitting(resv) {
     const pairs = [],
       singles = [];
     // Mesas detrás de los VIP laterales (hacia la pared): no son prioridad. Solo se usan cuando las de delante (incluso compartiendo) están llenas, y de la más lejana al escenario a la más cercana.
-    const latV = vips.filter((v) => v.w < v.h),
+    const latV = lat,
       latL = latV.filter((v) => v.cx < 22.5),
       latR = latV.filter((v) => v.cx >= 22.5);
     const isBL = (t) =>
@@ -1746,7 +1766,7 @@ async function runSitting(resv) {
   // Mesas General que sobren (nunca VIP ni mesas de 8 Premium): primero las de delante de los VIP, después las de detrás de los VIP laterales. Primero mesa propia; si no, compartida con otra reserva Show. Show con PMR sigue yendo a la barra (zona PMR).
   {
     const gen = (t) =>
-      t.floor === "base" && t.type !== "vip" && bt(t) !== "m8" && !occOf(t).some((o) => o.u.cat !== "Show");
+      t.floor === "base" && t.type !== "vip" && !t.prem && !occOf(t).some((o) => o.u.cat !== "Show");
     for (const u of units
       .filter((u) => u.cat === "Show" && !u.gest && !u.pmr)
       .sort((a, b) => b.pax - a.pax)) {
@@ -2814,10 +2834,10 @@ function okFor(u, t) {
   if (u.gest && t.floor !== "p2") return true;
   if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
   if (t.floor === "p2") return u.cat === "Show";
-  if (u.cat === "VIP") return t.type === "vip";
-  if (u.cat === "Premium") return bt(t) === "m8" || t.type === "vip";
-  if (u.cat === "General") return t.type !== "vip";
-  if (u.cat === "Show") return t.type !== "vip" && bt(t) !== "m8";
+  if (u.cat === "VIP") return isFV(t);
+  if (u.cat === "Premium") return !!t.prem || (t.type === "vip" && !isFV(t));
+  if (u.cat === "General") return !isFV(t);
+  if (u.cat === "Show") return t.type !== "vip" && !t.prem;
   return false;
 }
 // Mesas que ocupa una reserva.
@@ -2841,7 +2861,7 @@ function rebuild() {
       ts2.length
         ? [
             ts2.map(tLabel).join(" + ") +
-              (ts2.length > 1 && ts2[0].type !== "vip"
+              (ts2.length > 1 && !isFV(ts2[0])
                 ? " (mesas juntas)"
                 : ts2.length > 1 || ts2[0].no != null
                   ? ""
@@ -2862,7 +2882,7 @@ function placeUnit(u, dst) {
     status("Esa mesa no admite la categoría " + u.cat + ".", "warn");
     return;
   }
-  if (dst.type !== "vip" && !fitCols(u, dst, true)) {
+  if (!isFV(dst) && !fitCols(u, dst, true)) {
     status(
       dst.unit
         ? "En esa mesa no queda hueco para " + u.pax + " personas (o no se puede compartir con esa reserva)."
@@ -2871,11 +2891,11 @@ function placeUnit(u, dst) {
     );
     return;
   }
-  if (dst.type === "vip" && dst.unit) {
+  if (isFV(dst) && dst.unit) {
     status("Ese VIP está ocupado.", "warn");
     return;
   }
-  if (dst.type === "vip" && u.pax > 4) {
+  if (isFV(dst) && u.pax > 4) {
     status("Grupo de más de 4 en VIP: muévelo arrastrando desde su mesa actual.", "warn");
     return;
   }
@@ -2891,7 +2911,7 @@ function placeUnit(u, dst) {
     u.mesaNo = null;
   }
   freeTables(u);
-  addOcc(dst, u, dst.type === "vip" ? null : fitCols(u, dst, true));
+  addOcc(dst, u, isFV(dst) ? null : fitCols(u, dst, true));
   status("Colocado " + u.name + " en " + dst.id + (occOf(dst).length > 1 ? " (compartida)" : "") + ".", "ok");
   rebuild();
 }
@@ -2943,13 +2963,13 @@ function sitUp(e) {
   }
   if (!v) {
     // mover a libre: grupos multi-mesa necesitan mesas vecinas libres
-    let need = dst.type === "vip" ? Math.ceil(u.pax / 4) : 1;
-    const cap = dst.type === "vip" ? need * 4 : dst.cap;
-    if (dst.type !== "vip" && dst.cap < u.pax) {
+    let need = isFV(dst) ? Math.ceil(u.pax / 4) : 1;
+    const cap = isFV(dst) ? need * 4 : dst.cap;
+    if (!isFV(dst) && dst.cap < u.pax) {
       status("No caben: " + u.pax + " personas en una mesa de " + dst.cap + ".", "warn");
       return;
     }
-    if (dst.type === "vip" && need > 1) {
+    if (isFV(dst) && need > 1) {
       const blk = SIT.vipBlocks.find((b) => b.includes(dst)),
         i = blk.indexOf(dst),
         run = blk.slice(i, i + need);
