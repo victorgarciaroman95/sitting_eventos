@@ -31,7 +31,7 @@ sitting_eventos/
    - Las reservas con PMR llevan contorno rojo. ⚠ marca alergias o intolerancias y 🎂 los cumpleaños.
    - Los puntos verdes indican dónde se sienta cada persona.
 3. **Ajustes a mano:** arrastra una reserva a una mesa libre para moverla, o a una ocupada para intercambiarlas. Toca una mesa para ver el detalle de su reserva.
-4. **Planta alta:** la barra del anfiteatro se ve en la pestaña «Planta alta». Cada reserva de la barra lleva un número de mesa desde el 500.
+4. **Planta alta:** la barra del anfiteatro se ve en la pestaña «Planta alta». Cada reserva de la barra lleva un número de mesa desde el 501.
 
 ## Dónde se guardan los datos
 
@@ -83,7 +83,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 - **Mesas de detrás de los VIP laterales:** no son prioridad; antes se comparte mesa por delante de los VIP. Cuando hacen falta, se ocupan del fondo hacia el escenario.
 - **Personas solas (General):** mesa de 2 libre de planta baja → anfiteatro (siempre con silla libre entre personas solas) → compartir mesa de 4, 6 u 8 en diagonal (nunca cara a cara ni hombro con hombro). Dos personas solas nunca comparten mesa de 2.
 - **Mesas usadas por un lado:** el botón «Un lado / dos lados» funciona con las mesas de 4, 6 y 8 (con el plano desbloqueado). Usadas por un lado tienen 2, 3 y 4 plazas, solo en el lado que mira al escenario, y se ven con borde discontinuo. Una mesa de 8 usada por un lado sigue siendo mesa Premium; la mesa de 4 usada por un lado es la «mesa de 2».
-- **Números de mesa:** con el Excel cargado, el plano muestra solo los números de mesa, no los nombres. VIP frontales 1–9 (izquierda a derecha), fila de mesas detrás de los VIP desde el 100, fila siguiente desde el 200, mesas colocadas completamente dentro del pasillo de las 300 desde el 300 (de izquierda a derecha), barra del anfiteatro desde el 500. El resto de mesas aún no tienen número: en el plano salen en blanco y en la lista y la ficha llevan un código provisional (M…, V…, A…, S…). Se cambia en `numerar()` de `js/app.js`.
+- **Números de mesa:** con el Excel cargado, el plano muestra solo los números de mesa, no los nombres. VIP 1–9; Premium frente a la pasarela 34, 33, 32, 31, 41, 42, 43, 44; lados de la pasarela 36-35 y 46-45; mesas de 8 por fuera de las T 23–21 y 56–54; mesas de 6 por dentro de las T 26–24 y 53–51; mesas de 2 al final de las T 21 bis, 24 bis, 51 bis y 54 bis; sillones laterales 18–16 y 63–61; detrás de los sillones 15–11 y 67–65; filas desde la 101 y la 201; pasillo de las 300 desde la 301; barra desde la 501. La planta alta lleva código provisional (A…, S…). Se cambia en `numerar()` y `numZonas()` de `js/app.js`.
 - **Sitting bloqueado:** al cargar el Excel el sitting queda bloqueado (solo se consultan las fichas). Para mover reservas hay que pulsar «Sitting bloqueado» y volver a bloquearlo al terminar.
 - **Ficha de la reserva:** al tocar una mesa, una silla de la barra o una fila de la lista se abre una ventana con todos los datos: nº de reserva, categoría, personas y menús, invitación y quién la gestiona, alergias concretas (por persona si son varias reservas juntas), cumpleaños, PMR, ubicación, con quién comparte mesa, teléfono o email (se puede tocar para llamar o escribir), código de grupo y observaciones.
 - **Invitaciones:** contorno amarillo en el plano (columna «Invitación / personal» o reservas gestionadas). El rojo sigue siendo PMR.

@@ -1246,7 +1246,7 @@ function numerar(vips, mesas, pt) {
       t.y + t.h <= pt.y + pt.h + e;
   const p3 = mesas.filter(in300).sort((a, b) => a.x - b.x || a.y - b.y);
   p3.forEach((t, k) => {
-    t.no = 300 + k;
+    t.no = 301 + k;
   });
   mesas = mesas.filter((t) => !in300(t));
   const row = vips.filter((v) => v.w >= v.h).sort((a, b) => a.x - b.x);
@@ -1273,12 +1273,76 @@ function numerar(vips, mesas, pt) {
     f
       .sort((a, b) => a.cx - b.cx)
       .forEach((t, k) => {
-        t.no = NUM_FILAS[i] + k;
+        t.no = NUM_FILAS[i] + 1 + k;
       }),
   );
+  numZonas(mesas.filter((t) => t.no == null));
   [...vips, ...mesas, ...p3].forEach((t) => {
     if (t.no != null) t.id = String(t.no);
   });
+}
+function numZonas(ms) {
+  const W = 45,
+    cxS = 22.5,
+    mx = (t) => (t.cx < cxS ? t.x : W - (t.x + t.w)),
+    L = (t) => t.cx < cxS,
+    byY = (a, b) => a.cy - b.cy;
+  const put = (arr, nl, nr) => {
+    const l = arr.filter(L).sort(byY),
+      r = arr.filter((t) => !L(t)).sort(byY);
+    l.forEach((t, k) => {
+      if (nl[k] != null) t.no = nl[k];
+    });
+    r.forEach((t, k) => {
+      if (nr[k] != null) t.no = nr[k];
+    });
+  };
+  const hz = (t) => t.w >= t.h,
+    top = (t) => t.cy < 16.4;
+  // Sillones laterales: 18-16 a la izquierda y 63-61 a la derecha (desde el escenario hacia atrás)
+  put(
+    ms.filter((t) => t.type === "vip" && t.w < t.h),
+    [18, 17, 16],
+    [63, 62, 61],
+  );
+  // Mesas de 8 por fuera de los muros en T: 23-21 y 56-54
+  put(
+    ms.filter((t) => bt(t) === "m8" && hz(t) && top(t) && mx(t) > 9 && mx(t) < 11.5),
+    [23, 22, 21],
+    [56, 55, 54],
+  );
+  // Mesas de 6 por dentro de los muros en T: 26-24 y 53-51
+  put(
+    ms.filter((t) => bt(t) === "m6" && hz(t) && top(t) && mx(t) > 12.2 && mx(t) < 13.6),
+    [26, 25, 24],
+    [53, 52, 51],
+  );
+  // Mesas de 8 a los lados de la pasarela: 36 y 35 a la izquierda, 46 y 45 a la derecha
+  put(
+    ms.filter((t) => bt(t) === "m8" && hz(t) && top(t) && mx(t) > 14 && mx(t) < 16.5),
+    [36, 35],
+    [46, 45],
+  );
+  // Mesas de 2 al final de los muros en T: 21 bis (fuera) y 24 bis (dentro) a la izquierda; 54 bis (fuera) y 51 bis (dentro) a la derecha
+  ms.filter(
+    (t) => (t.type === "m4u" || t.type === "m4") && !top(t) && t.cy < 18.4 && mx(t) > 10 && mx(t) < 14,
+  ).forEach((t) => {
+    const out = mx(t) < 12;
+    t.no = L(t) ? (out ? "21 bis" : "24 bis") : out ? "54 bis" : "51 bis";
+  });
+  // Mesas de detrás de los sillones laterales: 15-11 a la izquierda y 67-65 a la derecha
+  put(
+    ms.filter((t) => t.type !== "vip" && mx(t) < 7),
+    [15, 14, 13, 12, 11],
+    [67, 66, 65],
+  );
+  // 8 mesas de 8 verticales frente a la pasarela, de izquierda a derecha: 34, 33, 32, 31, 41, 42, 43, 44
+  const pv = ms.filter((t) => bt(t) === "m8" && t.h > t.w && t.cy < 18.4).sort((a, b) => a.cx - b.cx);
+  const np = [34, 33, 32, 31, 41, 42, 43, 44];
+  if (pv.length === 8)
+    pv.forEach((t, k) => {
+      t.no = np[k];
+    });
 }
 function isFV(t) {
   return t.type === "vip" && t.w >= t.h;
@@ -1290,7 +1354,7 @@ function tType(t) {
     .replace(/^Sillón/, "sillón");
 }
 function tLabel(t) {
-  return t.no != null ? (isFV(t) ? "VIP " : "Mesa ") + t.no : t.id;
+  return t.no != null ? (isFV(t) ? "VIP " : t.type === "vip" ? "Sillón lateral " : "Mesa ") + t.no : t.id;
 }
 // SITTING AUTOMÁTICO: reparte las reservas en mesas y en la barra siguiendo las reglas de Sala Scala.
 // Orden: VIP → Premium → Invitaciones/personal → General → barra del anfiteatro (General y Show).
@@ -1355,11 +1419,7 @@ async function runSitting(resv) {
     .forEach((t) => (t.id = "M" + ++n));
   {
     const pd = base.find((d) => d[0] === "pt");
-    numerar(
-      vips,
-      mesas.filter((t) => t.type !== "vip"),
-      pd ? { x: pd[1], y: pd[2], w: T.pt.w, h: T.pt.h } : null,
-    );
+    numerar(vips, mesas, pd ? { x: pd[1], y: pd[2], w: T.pt.w, h: T.pt.h } : null);
   }
   // Mesas Premium: las 8 mesas de 8 verticales frente a la pasarela y la fila 100
   tabs.forEach((t) => {
@@ -2106,7 +2166,7 @@ async function runSitting(resv) {
         Math.min(...seats.filter((x) => x.unit === b).map((x) => x.i)),
     );
     bu.forEach((u, k) => {
-      u.mesaNo = 500 + k;
+      u.mesaNo = 501 + k;
       u.where = u.where.map((w) =>
         w.startsWith("Barra") ? "Mesa " + u.mesaNo + " · " + w.replace("Barra anfiteatro", "barra") : w,
       );
