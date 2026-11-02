@@ -73,7 +73,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
   - las personas solas, a las mesas de 2;
   - solo cuando toda la planta baja está llena, suben a la barra.
 - **Barra del anfiteatro** (50 sillas repartidas a lo largo de toda la barra, zona PMR, cada PMR ocupa 2 sillas):
-  - General con PMR, totalmente centrada; después Show con PMR a su lado;
+  - reservas con PMR de cualquier categoría (VIP, Premium, General, invitaciones), totalmente centradas: los PMR nunca van a la planta baja; después Show con PMR a su lado;
   - luego el resto de General y, alrededor, el resto de Show;
   - las personas solas se agrupan en un mismo lado;
   - se deja una silla libre entre reservas si hay sitio; con el anfiteatro lleno se quitan, primero en curvas y laterales (empezando por las más cercanas al centro) y, si aún falta, también en el tramo central. Entre dos personas solas se mantiene siempre.
