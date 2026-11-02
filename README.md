@@ -58,6 +58,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 | Observaciones | Texto libre |
 | Invitación / personal | No, Invitación, Familia/amigos o Trabajador |
 | Reserva gestionada por | Vacío, Propiedad, Jefe de sala o Regidor |
+| Servicios adicionales | Lo contratado aparte, con cantidad, separado por «;» (p. ej. `Barra libre con vino x4; Botella de champagne Moët Chandon x1; Servicio de cancelación y modificación`). Sale con el icono 🥂 y en la ficha (la cancelación solo en la ficha) |
 
 `ejemplos/reservas-sala-scala.xlsx` sirve de plantilla: borra las filas de prueba y añade las reservas reales.
 

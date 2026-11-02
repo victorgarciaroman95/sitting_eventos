@@ -1067,6 +1067,7 @@ function parseExcel(buf) {
       ob: ix("observaciones"),
       inv: ix("invitacion"),
       ges: ix("reservagestionada"),
+      sa: ix("servicios"),
     };
     const g = (r, k) => (c[k] >= 0 ? r[c[k]] : "");
     const num = (v) => {
@@ -1101,6 +1102,7 @@ function parseExcel(buf) {
         })(),
         ges:
           { regidor: "Regidor", jefedesala: "Jefe de sala", propiedad: "Propiedad" }[norm(g(r, "ges"))] || "",
+        sa: String(g(r, "sa")).trim(),
       });
     }
     return out;
@@ -2200,6 +2202,23 @@ async function runSitting(resv) {
 function hasAl(u) {
   return u.res.some((r) => r.al);
 }
+function saItems(r) {
+  return String(r.sa || "")
+    .split(/[;\n]|,(?!\d)/)
+    .map((x) => x.trim())
+    .filter((x) => x && !/^no$|^ninguno$/i.test(x));
+}
+const isCanc = (x) => /cancelaci|modificaci/i.test(x);
+function hasSa(u) {
+  return u.res.some((r) => saItems(r).some((x) => !isCanc(x)));
+}
+function icoList(u) {
+  const a = [];
+  if (hasAl(u)) a.push("al");
+  if (u.cu) a.push("cu");
+  if (hasSa(u)) a.push("sa");
+  return a;
+}
 // Dibuja los iconos ⚠ (alergias) y 🎂 (cumpleaños) en fila.
 function badges(g, px, py, u) {
   let k = 0;
@@ -2218,11 +2237,12 @@ function badges(g, px, py, u) {
   };
   if (hasAl(u)) one("⚠", "#A32D2D");
   if (u.cu) one("🎂", "#854F0B");
+  if (hasSa(u)) one("🥂", "#1F5F7A");
 }
 // Dibuja un icono (⚠ o 🎂) en un punto.
 function badgeOne(g, cx, cy, ic) {
-  const col = ic === "al" ? "#A32D2D" : "#854F0B",
-    txt = ic === "al" ? "⚠" : "🎂";
+  const col = { al: "#A32D2D", cu: "#854F0B", sa: "#1F5F7A" }[ic],
+    txt = { al: "⚠", cu: "🎂", sa: "🥂" }[ic];
   const b = el("g", {}, g);
   el("circle", { cx, cy, r: 4.6, fill: "#fff", stroke: col, "stroke-width": 1.2 }, b);
   el(
@@ -2314,7 +2334,7 @@ function sitOverlay() {
       );
       if (!bdone.has(t.unit)) {
         bdone.add(t.unit);
-        const nb = (hasAl(t.unit) ? 1 : 0) + (t.unit.cu ? 1 : 0);
+        const nb = icoList(t.unit).length;
         if (nb) {
           const ut = SIT.tabs.filter((q) => q.unit === t.unit),
             x0 = Math.min(...ut.map((q) => q.x)),
@@ -2323,9 +2343,7 @@ function sitOverlay() {
             y1 = Math.max(...ut.map((q) => q.y + q.h)),
             cy = (y0 + y1) / 2,
             horiz = x1 - x0 >= y1 - y0;
-          const icons = [];
-          if (hasAl(t.unit)) icons.push("al");
-          if (t.unit.cu) icons.push("cu");
+          const icons = icoList(t.unit);
           if (t.type === "vip" && !horiz) {
             const ex = t.cx < 22.5 ? x1 : x0;
             icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
@@ -2348,8 +2366,10 @@ function sitOverlay() {
             const ex = (x0 + x1) / 2 < 22.5 ? x1 : x0;
             icons.forEach((ic, k) => badgeOne(g, X(ex), Y(cy) + (k - (icons.length - 1) / 2) * 10, ic));
           } else if (horiz) {
-            badgeOne(g, X(x0), Y(cy), icons[0]);
-            if (icons[1]) badgeOne(g, X(x1), Y(cy), icons[1]);
+            const lf = icons.filter((_, k) => k % 2 === 0),
+              rt = icons.filter((_, k) => k % 2 === 1);
+            lf.forEach((ic, k) => badgeOne(g, X(x0), Y(cy) + (k - (lf.length - 1) / 2) * 10, ic));
+            rt.forEach((ic, k) => badgeOne(g, X(x1), Y(cy) + (k - (rt.length - 1) / 2) * 10, ic));
           } else badges(g, X((x0 + x1) / 2) - (nb - 1) * 5, Y(t.no >= 100 && t.no < 200 ? y1 : y0), t.unit);
         }
       }
@@ -2381,7 +2401,7 @@ function sitOverlay() {
       );
       badges(
         g,
-        X(m.y >= 17 ? m.x : nx) - ((hasAl(s.unit) ? 1 : 0) + (s.unit.cu ? 1 : 0) - 1) * 5,
+        X(m.y >= 17 ? m.x : nx) - (icoList(s.unit).length - 1) * 5,
         Y(m.y >= 17 ? m.y + 0.75 : m.y) + 11,
         s.unit,
       );
@@ -2455,7 +2475,8 @@ function showPop(u) {
     e(u.cat) +
     "</span>" +
     (u.pmr ? '<span class="tag" style="background:' + PMRC + '">' + u.pmr + " PMR</span>" : "") +
-    (u.cu ? '<span class="tag" style="background:#854F0B">🎂 Cumpleaños</span>' : "");
+    (u.cu ? '<span class="tag" style="background:#854F0B">🎂 Cumpleaños</span>' : "") +
+    (hasSa(u) ? '<span class="tag" style="background:#1F5F7A">🥂 Servicios adicionales</span>' : "");
   if (u.staff || u.gest)
     h +=
       '<div class="inv">' +
@@ -2464,6 +2485,14 @@ function showPop(u) {
         ? " · gestionada por " + e(u.gest.toLowerCase()) + (u.gest === "Propiedad" ? " (familia Angulo)" : "")
         : "") +
       "</div>";
+  {
+    const sa = u.res.filter((r) => saItems(r).length);
+    if (sa.length)
+      h +=
+        '<div class="sa">🥂 Servicios adicionales contratados:<br>' +
+        sa.map((r) => (u.res.length > 1 ? e(r.nom) + ": " : "") + saItems(r).map(e).join(", ")).join("<br>") +
+        "</div>";
+  }
   if (al.length)
     h +=
       '<div class="al">⚠ Alergias / intolerancias:<br>' +
@@ -2765,15 +2794,14 @@ function drawShared(g, t) {
     );
     const cx = X(r.x + r.w / 2),
       cy = Y(r.y + r.h / 2);
-    const nb = (hasAl(u) ? 1 : 0) + (u.cu ? 1 : 0);
+    const ic = icoList(u),
+      nb = ic.length;
     if (nb) {
       if (long) badges(g, cx - (nb - 1) * 5, Y(r.y), u);
       else {
         const r1 = t.no >= 100 && t.no < 200,
           ex = t.cx < STAGE.x !== r1 ? X(r.x) : X(r.x + r.w);
-        let k = 0;
-        if (hasAl(u)) badgeOne(g, ex, cy + (k++ - (nb - 1) / 2) * 10, "al");
-        if (u.cu) badgeOne(g, ex, cy + (k - (nb - 1) / 2) * 10, "cu");
+        ic.forEach((c, k) => badgeOne(g, ex, cy + (k - (nb - 1) / 2) * 10, c));
       }
     }
   }
