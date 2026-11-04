@@ -2870,7 +2870,7 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
           PRE4 = k;
           const s2 = await run(cfg[0], cfg[1]);
           PRE4 = 0;
-          if (falta(s2) <= falta(best) && bad(s2) <= bad(best)) {
+          if (falta(s2) <= falta(best)) {
             s2.gapQuit = s2.gapQuit || 0;
             best = s2;
             SIT = s2;
