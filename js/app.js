@@ -1694,6 +1694,8 @@ async function runSitting(resv) {
       }
     });
   // 2. Premium (mesas de 8 alrededor de la pasarela; nunca en VIP)
+  // Mesas pequeñas (hasta 4 plazas: mesas de 4 y sillones laterales). Las reservas de hasta 4 personas van antes a ellas, para dejar las mesas de 6 y 8 a los grupos grandes.
+  const small = (t) => t.cap <= 4;
   const isPrem = (t) => !!t.prem,
     row1 = (t) => t.no >= 101 && t.no < 200,
     row2 = (t) => t.no >= 201 && t.no < 300;
@@ -1876,6 +1878,11 @@ async function runSitting(resv) {
           continue;
         }
         if (
+          (u.pax <= 4 &&
+            placeOnTables(
+              u,
+              front.filter((t) => !isPrem(t) && small(t)),
+            )) ||
           placeOnTables(
             u,
             front.filter((t) => !isPrem(t)),
@@ -1904,6 +1911,11 @@ async function runSitting(resv) {
         continue;
       }
       if (
+        (u.pax <= 4 &&
+          placeOnTables(
+            u,
+            front.filter((t) => !isPrem(t) && !isTwo(t) && !row2(t) && small(t)),
+          )) ||
         placeOnTables(
           u,
           front.filter((t) => !isPrem(t) && !isTwo(t) && !row2(t)),
