@@ -1786,6 +1786,11 @@ async function runSitting(resv) {
         u.where[u.where.length - 1] += " · Premium";
         continue;
       }
+      // Persona sola Premium sin mesa Premium libre ni sillón lateral libre: un VIP vacío para ella sola (nunca comparte)
+      if (u.pax === 1 && placeVip(u)) {
+        u.where[u.where.length - 1] += " · Premium (persona sola)";
+        continue;
+      }
       if (placeOnTables(u, mesas.filter(isPrem), true)) continue;
       // Premium que no cabe ni en las mesas de 8 ni en VIP: la mejor mesa General de delante de los VIP (más cercana al escenario), con aviso
       const fr = mesas.filter((t) => !t.prem && t.type !== "m4u" && !isBL0(t));
@@ -1870,11 +1875,6 @@ async function runSitting(resv) {
     for (const u of pairs) {
       if (!placeOnTables(u, front.filter(isTwo))) toBarra.push(u);
     }
-    // personas solas: mesa de 2 libre de planta baja; si no hay, al anfiteatro
-    for (const u of singles) {
-      if (placeOnTables(u, mesas.filter(isTwo))) continue;
-      toBarra.push(u);
-    }
     // planta baja ante todo: compartir mesas General de delante → mesas de detrás de los VIP laterales (propias y después compartidas) → huecos de las mesas Premium
     const hasPrem = (t) => occOf(t).some((o) => o.u.cat === "Premium");
     const steps = [
@@ -1897,6 +1897,17 @@ async function runSitting(resv) {
           toBarra.splice(toBarra.indexOf(u), 1);
         }
       }
+    }
+    // personas solas General: una mesa General libre para ella sola (la más pequeña y cercana; una vez sentados los grupos); si no queda ninguna, al anfiteatro
+    for (const u of singles) {
+      if (
+        placeOnTables(
+          u,
+          mesas.filter((t) => (!isPrem(t) && t.type !== "vip") || (t.type === "vip" && t.w < t.h)),
+        )
+      )
+        continue;
+      toBarra.push(u);
     }
   }
   // 3b. Show en la planta baja: si quedan mesas General libres (ya sentado todo General), el Show baja antes de subir al anfiteatro.
