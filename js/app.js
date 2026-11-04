@@ -1848,9 +1848,9 @@ async function runSitting(resv) {
         u.where[u.where.length - 1] += " · Premium";
         continue;
       }
-      // Persona sola Premium sin mesa Premium libre ni sillón lateral libre: un VIP vacío para ella sola (nunca comparte)
-      if (u.pax === 1 && placeVip(u)) {
-        u.where[u.where.length - 1] += " · Premium (persona sola)";
+      // Premium sin mesa Premium propia ni sillón lateral libre: si ha quedado algún VIP vacío, mejor un VIP que compartir mesa (las personas solas, siempre antes que compartir)
+      if (u.pax <= 4 && placeVip(u)) {
+        u.where[u.where.length - 1] += u.pax === 1 ? " · Premium (persona sola)" : " · Premium en VIP libre";
         continue;
       }
       if (
@@ -2791,6 +2791,7 @@ function showSitting() {
 document.getElementById("sitfile").addEventListener("change", async (e) => {
   const f = e.target.files[0];
   if (!f) return;
+  document.getElementById("sitfname").textContent = "📄 " + f.name;
   const m = document.getElementById("sitmsg");
   m.textContent = "Leyendo " + f.name + "…";
   try {
@@ -3236,7 +3237,7 @@ function okFor(u, t) {
   if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
   if (t.floor === "p2") return u.cat === "Show";
   if (u.cat === "VIP") return isFV(t);
-  if (u.cat === "Premium") return !!t.prem || (t.type === "vip" && !isFV(t));
+  if (u.cat === "Premium") return !!t.prem || t.type === "vip";
   if (u.cat === "General") return !isFV(t);
   if (u.cat === "Show") return t.type !== "vip" && !t.prem;
   return false;
@@ -3593,6 +3594,7 @@ document.addEventListener("pointerup", (e) => {
 });
 // Botón "Quitar sitting": vuelve al plano sin reservas.
 function clearSitting() {
+  document.getElementById("sitfname").textContent = "";
   SIT = null;
   pmove = null;
   pendingUnit = null;
