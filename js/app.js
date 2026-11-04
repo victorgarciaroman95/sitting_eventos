@@ -1689,7 +1689,9 @@ async function runSitting(resv) {
       }
     });
   // 2. Premium (mesas de 8 alrededor de la pasarela; nunca en VIP)
-  const isPrem = (t) => !!t.prem;
+  const isPrem = (t) => !!t.prem,
+    row1 = (t) => t.no >= 101 && t.no < 200,
+    row2 = (t) => t.no >= 201 && t.no < 300;
   // Persona sola en mesa compartida: ocupa su propia pareja de sillas; con otra persona sola al lado, en diagonal (nunca cara a cara ni hombro con hombro)
   function placeSingle(u, pool) {
     let best = null;
@@ -1777,7 +1779,16 @@ async function runSitting(resv) {
     for (const u of units
       .filter((u) => u.cat === "Premium" && !u.gest && !u.pmr)
       .sort((a, b) => b.pax - a.pax)) {
-      if (!placeOnTables(u, mesas.filter(isPrem), false)) pf.push(u);
+      // Parejas Premium: prioridad en la fila 100; el resto de reservas Premium, primero en las demás mesas Premium (así la fila 100 queda para las parejas)
+      const P = mesas.filter(isPrem),
+        r1 = P.filter(row1),
+        o1 = P.filter((t) => !row1(t));
+      if (
+        !(u.pax === 2
+          ? placeOnTables(u, r1, false) || placeOnTables(u, o1, false)
+          : placeOnTables(u, o1, false) || placeOnTables(u, r1, false))
+      )
+        pf.push(u);
     }
     // si no caben todas en mesas propias, se comparten mesas de 8 entre reservas Premium
     // Premium que no cabe en mesa propia: las reservas de 3 o más van a los VIP que sobran (una por VIP); las de 1–2, o si no hay VIP libre, comparten mesa de 8
@@ -1791,6 +1802,15 @@ async function runSitting(resv) {
         u.where[u.where.length - 1] += " · Premium (persona sola)";
         continue;
       }
+      if (
+        u.pax === 2 &&
+        placeOnTables(
+          u,
+          mesas.filter((t) => isPrem(t) && row1(t)),
+          true,
+        )
+      )
+        continue;
       if (placeOnTables(u, mesas.filter(isPrem), true)) continue;
       // Premium que no cabe ni en las mesas de 8 ni en VIP: la mejor mesa General de delante de los VIP (más cercana al escenario), con aviso
       const fr = mesas.filter((t) => !t.prem && t.type !== "m4u" && !isBL0(t));
@@ -1855,11 +1875,25 @@ async function runSitting(resv) {
         singles.push(u);
         continue;
       }
+      // Parejas General: prioridad en las mesas de 2 (las «bis») y después en la fila 200; el resto de reservas General deja la fila 200 para el final
+      if (
+        u.pax === 2 &&
+        (placeOnTables(u, front.filter(isTwo)) ||
+          placeOnTables(
+            u,
+            front.filter((t) => row2(t) && !isPrem(t)),
+          ))
+      )
+        continue;
       if (placeOnTables(u, front.filter(isPrem))) {
         u.where[u.where.length - 1] += " · hueco Premium";
         continue;
       }
       if (
+        placeOnTables(
+          u,
+          front.filter((t) => !isPrem(t) && !isTwo(t) && !row2(t)),
+        ) ||
         placeOnTables(
           u,
           front.filter((t) => !isPrem(t) && !isTwo(t)),
