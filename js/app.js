@@ -1845,16 +1845,11 @@ async function runSitting(resv) {
     for (const u of units
       .filter((u) => u.cat === "Premium" && !u.gest && !u.pmr && !u.where.length)
       .sort((a, b) => b.pax - a.pax)) {
-      // Parejas Premium: prioridad en la fila 100; el resto de reservas Premium, primero en las demás mesas Premium (así la fila 100 queda para las parejas)
+      // Premium: primero las 8 mesas de 8 frente a la pasarela (grupos grandes antes) y después la fila 100
       const P = mesas.filter(isPrem),
         r1 = P.filter(row1),
         o1 = P.filter((t) => !row1(t));
-      if (
-        !(u.pax === 2
-          ? placeOnTables(u, r1, false) || placeOnTables(u, o1, false)
-          : placeOnTables(u, o1, false) || placeOnTables(u, r1, false))
-      )
-        pf.push(u);
+      if (!(placeOnTables(u, o1, false) || placeOnTables(u, r1, false))) pf.push(u);
     }
     // si no caben todas en mesas propias, se comparten mesas de 8 entre reservas Premium
     // Premium que no cabe en mesa propia: las reservas de 3 o más van a los VIP que sobran (una por VIP); las de 1–2, o si no hay VIP libre, comparten mesa de 8
@@ -1877,15 +1872,6 @@ async function runSitting(resv) {
         u.where[u.where.length - 1] += u.pax === 1 ? " · Premium (persona sola)" : " · Premium en VIP libre";
         continue;
       }
-      if (
-        u.pax === 2 &&
-        placeOnTables(
-          u,
-          mesas.filter((t) => isPrem(t) && row1(t)),
-          true,
-        )
-      )
-        continue;
       if (placeOnTables(u, mesas.filter(isPrem), true)) continue;
       // Premium que no cabe ni en las mesas de 8 ni en VIP: la mejor mesa General de delante de los VIP (más cercana al escenario), con aviso
       const fr = mesas.filter((t) => !t.prem && t.type !== "m4u" && !isBL0(t));
