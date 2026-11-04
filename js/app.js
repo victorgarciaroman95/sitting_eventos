@@ -2486,7 +2486,22 @@ function sitOverlay() {
         sr.addEventListener("pointerdown", (ev) => {
           ev.stopPropagation();
           ev.preventDefault();
-          showPop(uu);
+          ptrs.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+          try {
+            svg.setPointerCapture(ev.pointerId);
+          } catch (_) {}
+          pmove = { from: "barra", unit: uu, p: pm(ev), c0: { x: ev.clientX, y: ev.clientY } };
+          if (!SITLOCK) {
+            status(
+              "Moviendo " +
+                uu.name +
+                " (" +
+                uu.pax +
+                " pax)… suéltala en una mesa, en la barra o en la lista de sin ubicar",
+              "",
+            );
+            sitGhost();
+          }
         });
       }
     }
@@ -2597,8 +2612,45 @@ document.addEventListener("keydown", (ev) => {
 function esc_(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 }
+function showSide() {
+  const b = document.getElementById("side");
+  if (!b) return;
+  if (!SIT) {
+    b.hidden = true;
+    b.innerHTML = "";
+    return;
+  }
+  b.hidden = false;
+  const L = SIT.units.filter((u) => !u.where.length && u.pax > 0);
+  b.innerHTML =
+    "<h4>Sin ubicar (" +
+    L.length +
+    ')</h4><div class="hint">' +
+    (L.length
+      ? "Desbloquea el sitting y arrastra cada reserva a una mesa o a la barra del anfiteatro."
+      : "Todas las reservas tienen sitio.") +
+    " Para quitar una reserva del plano, arrástrala aquí.</div>" +
+    L.map(
+      (u) =>
+        '<div class="chip" data-u="' +
+        u.idx +
+        '"><b style="background:' +
+        (CATC[u.cat] || "#888") +
+        '">' +
+        u.pax +
+        "</b><span>" +
+        esc_(u.name) +
+        "</span>" +
+        icoList(u)
+          .map((i) => ({ al: "⚠", cu: "🎂", sa: "🥂" })[i])
+          .join("") +
+        (u.pmr ? "♿" : "") +
+        "</div>",
+    ).join("");
+}
 // Pinta el resumen, los avisos y la tabla de reservas bajo el plano.
 function showSitting() {
+  showSide();
   const box = document.getElementById("sitres");
   if (!SIT) {
     box.innerHTML = "";
@@ -3030,7 +3082,7 @@ function sitDown(t, e) {
       o = st.occ.find((o) => o.cols.includes(c));
     if (o) mu = o.u;
   }
-  pmove = { from: st, unit: mu, p: pm(e) };
+  pmove = { from: st, unit: mu, p: pm(e), c0: { x: e.clientX, y: e.clientY } };
   if (SITLOCK) return;
   status("Moviendo " + mu.name + " (" + mu.pax + " pax)… suelta sobre otra mesa", "");
   sitGhost();
@@ -3040,7 +3092,7 @@ function sitGhost() {
   const g = document.getElementById("sitfx");
   const old = document.getElementById("ghost");
   if (old) old.remove();
-  if (!pmove) return;
+  if (!pmove || !pmove.p) return;
   const c = el("g", { id: "ghost" }, g);
   el(
     "circle",
@@ -3097,6 +3149,7 @@ function sitMove(e) {
   if (SITLOCK) return;
   pmove.p = pm(e);
   sitGhost();
+  document.getElementById("side").classList.toggle("drop", overSide(e));
 }
 // ¿Puede ir esta reserva a esta mesa? (VIP solo a VIP, Premium solo a mesas de 8, General a todo menos VIP).
 function okFor(u, t) {
@@ -3184,24 +3237,146 @@ function placeUnit(u, dst) {
   status("Colocado " + u.name + " en " + dst.id + (occOf(dst).length > 1 ? " (compartida)" : "") + ".", "ok");
   rebuild();
 }
+function inBarra(u) {
+  return SIT.seats.some((s) => s.unit === u);
+}
+function clearBarra(u) {
+  SIT.seats.forEach((s) => {
+    if (s.unit === u) {
+      s.unit = null;
+      s.pmr = false;
+    }
+  });
+  u.where = u.where.filter((w) => !/barra/i.test(w));
+  u.mesaNo = null;
+}
+function renumBarra() {
+  const bu = [...new Set(SIT.seats.filter((x) => x.unit).map((x) => x.unit))];
+  bu.sort(
+    (a, b) =>
+      Math.min(...SIT.seats.filter((x) => x.unit === a).map((x) => x.i)) -
+      Math.min(...SIT.seats.filter((x) => x.unit === b).map((x) => x.i)),
+  );
+  bu.forEach((u, k) => {
+    u.mesaNo = 501 + k;
+    const ids = SIT.seats
+      .filter((x) => x.unit === u)
+      .map((x) => x.i + 1)
+      .sort((a, b) => a - b);
+    u.where = u.where.filter((w) => !/barra/i.test(w));
+    u.where.unshift(
+      "Mesa " +
+        u.mesaNo +
+        " · barra " +
+        (ids.length > 1 ? "B" + ids[0] + "–B" + ids[ids.length - 1] : "B" + ids[0]) +
+        (u.pmr ? " (" + u.pmr + " PMR)" : ""),
+    );
+    u.note = "";
+  });
+}
+function barraAt(p) {
+  if (FLOOR !== "p2") return null;
+  let best = null,
+    bd = 0.7;
+  for (const s of SIT.seats) {
+    const d = Math.hypot(s.x - p.x, s.y - p.y);
+    if (d < bd) {
+      bd = d;
+      best = s;
+    }
+  }
+  return best;
+}
+function dropBarra(u, seat) {
+  const need = u.pax - u.pmr + 2 * u.pmr,
+    ord = [...SIT.seats].sort((a, b) => a.i - b.i);
+  let best = null;
+  for (let i = 0; i + need <= ord.length; i++) {
+    const run = ord.slice(i, i + need);
+    if (!run.every((x, j) => (!x.unit || x.unit === u) && (j === 0 || x.i - run[j - 1].i === 1))) continue;
+    const d = Math.min(...run.map((x) => Math.abs(x.i - seat.i)));
+    if (!best || d < best.d) best = { run, d };
+  }
+  if (!best || best.d > need) {
+    status("No hay " + need + " sillas libres seguidas en esa zona de la barra.", "warn");
+    render();
+    return;
+  }
+  clearBarra(u);
+  freeTables(u);
+  const run = best.run,
+    ctr = (need - 1) / 2;
+  run
+    .map((x, k) => ({ x, d: Math.abs(k - ctr) }))
+    .sort((a, b) => a.d - b.d)
+    .forEach((o, k) => {
+      o.x.unit = u;
+      o.x.pmr = k < 2 * u.pmr;
+    });
+  renumBarra();
+  status("Movido " + u.name + " a la barra del anfiteatro.", "ok");
+  rebuild();
+}
+function unplace(u) {
+  clearBarra(u);
+  freeTables(u);
+  u.where = [];
+  u.note = "Sin ubicar (quitada a mano)";
+  renumBarra();
+  status(u.name + " vuelve a la lista de sin ubicar.", "ok");
+  rebuild();
+}
+function overSide(e) {
+  const b = document.getElementById("side");
+  if (!b || b.hidden) return false;
+  const r = b.getBoundingClientRect();
+  return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+}
 // Al soltar una reserva: la mueve a una mesa libre o la intercambia con la de otra mesa.
 function sitUp(e) {
   const mv = pmove;
   pmove = null;
   sitGhost();
-  const dst = tableAt(pm(e));
+  document.getElementById("side").classList.remove("drop");
+  const moved = !mv.c0 || Math.abs(e.clientX - mv.c0.x) + Math.abs(e.clientY - mv.c0.y) > 6;
+  if (!moved) {
+    render();
+    status("", "");
+    showPop(mv.unit);
+    return;
+  }
+  if (SITLOCK) {
+    render();
+    sitBlocked();
+    return;
+  }
+  const u = mv.unit;
+  if (overSide(e)) {
+    if (mv.from !== "side") unplace(u);
+    else render();
+    return;
+  }
+  const p = pm(e),
+    bs = barraAt(p);
+  if (bs) {
+    dropBarra(u, bs);
+    return;
+  }
+  const dst = tableAt(p);
   if (!dst || dst === mv.from) {
     render();
-    if (dst === mv.from) {
-      status("", "");
-      showPop(mv.unit);
-    } else status("", "");
+    status("", "");
     return;
   }
-  if (sitBlocked()) {
-    render();
-    return;
+  const wasB = inBarra(u);
+  moveToTable(mv, dst);
+  if (wasB && tablesOf(u).length) {
+    clearBarra(u);
+    renumBarra();
+    rebuild();
   }
+}
+function moveToTable(mv, dst) {
   const u = mv.unit,
     src = tablesOf(u);
   if (!okFor(u, dst)) {
@@ -3257,6 +3432,11 @@ function sitUp(e) {
     return;
   }
   // intercambio
+  if (!src.length) {
+    status("Esa mesa está ocupada y no queda hueco para " + u.pax + " personas.", "warn");
+    render();
+    return;
+  }
   const vt = tablesOf(v);
   if (vt.length > 1 || src.length > 1) {
     status("Intercambio solo entre reservas de una sola mesa.", "warn");
@@ -3295,6 +3475,43 @@ document.getElementById("sitres").addEventListener("click", (e) => {
   status("Toca una mesa libre del plano para colocar " + u.name + " (" + u.pax + " pax).", "");
 });
 
+document.getElementById("side").addEventListener("pointerdown", (e) => {
+  const c = e.target.closest(".chip");
+  if (!c || !SIT) return;
+  e.preventDefault();
+  const u = SIT.units[+c.dataset.u];
+  pmove = { from: "side", unit: u, p: null, c0: { x: e.clientX, y: e.clientY }, pid: e.pointerId };
+  try {
+    c.setPointerCapture(e.pointerId);
+  } catch (_) {}
+});
+document.addEventListener("pointermove", (e) => {
+  if (!pmove || pmove.from !== "side" || e.pointerId !== pmove.pid) return;
+  const r = svg.getBoundingClientRect();
+  if (e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom) {
+    if (SITLOCK) return;
+    pmove.p = pm(e);
+    sitGhost();
+  }
+});
+document.addEventListener("pointerup", (e) => {
+  if (!pmove || pmove.from !== "side" || e.pointerId !== pmove.pid) return;
+  const mv = pmove,
+    moved = Math.abs(e.clientX - mv.c0.x) + Math.abs(e.clientY - mv.c0.y) > 6;
+  if (!moved || overSide(e)) {
+    pmove = null;
+    sitGhost();
+    if (!moved) showPop(mv.unit);
+    return;
+  }
+  const r = svg.getBoundingClientRect();
+  if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) {
+    pmove = null;
+    sitGhost();
+    return;
+  }
+  sitUp(e);
+});
 // Botón "Quitar sitting": vuelve al plano sin reservas.
 function clearSitting() {
   SIT = null;

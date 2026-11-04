@@ -214,3 +214,16 @@ button:disabled {
 /* Botón de bloqueo del sitting */
 #sitlock:not(:disabled) { border-color: var(--ok); color: var(--ok); }
 #sitlock.unl { border-color: var(--warn); color: var(--warn); font-weight: 500; }
+
+/* Lista lateral de reservas sin ubicar (se arrastran al plano) */
+.mapwrap { display: flex; gap: 10px; align-items: stretch; }
+.mapwrap #plan { flex: 1; min-width: 0; }
+#side { width: 190px; flex: none; border: 1px solid var(--line); border-radius: 12px; background: var(--card); padding: 8px; overflow: auto; max-height: 80vh; font-size: 13px; }
+#side[hidden] { display: none; }
+#side h4 { margin: 0 0 4px; font-size: 14px; }
+#side .hint { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+#side .chip { display: flex; align-items: center; gap: 6px; padding: 6px 8px; margin: 4px 0; border-radius: 8px; border: 1px solid var(--line); cursor: grab; touch-action: none; user-select: none; -webkit-user-select: none; background: var(--bg); }
+#side .chip b { color: #fff; border-radius: 10px; padding: 0 6px; font-size: 12px; }
+#side .chip span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#side.drop { outline: 2px dashed var(--acc); }
+@media (max-width: 720px) { .mapwrap { flex-direction: column; } #side { width: auto; max-height: 180px; } }

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Sitting · Sala Scala</title>
-    <link rel="stylesheet" href="css/estilos.css?v=202611041255" />
+    <link rel="stylesheet" href="css/estilos.css?v=202611041304" />
   </head>
   <body>
     <main>
@@ -45,6 +45,7 @@
           >Pellizca con dos dedos para hacer zoom · arrastra el fondo para moverte</span
         >
       </div>
+      <div class="mapwrap">
       <svg id="plan" viewBox="0 0 680 540">
         <g id="grid"></g>
         <defs>
@@ -55,6 +56,9 @@
         <g id="tl"></g>
         <g id="sitfx" style="pointer-events: none"></g>
       </svg>
+      <!-- Reservas sin ubicar: se arrastran desde aquí al plano -->
+      <aside id="side" hidden></aside>
+      </div>
       <!-- Botones para cambiar de planta (debajo del plano) -->
       <div class="bar" id="tabs" style="margin-top: 8px">
         <button id="tab-base" onclick="switchFloor('base')">Planta baja</button
@@ -87,12 +91,12 @@
         <!-- Ficha de una reserva (se abre al tocar una mesa, una silla de la barra o una fila de la lista) -->
         <div id="pop" class="pop" style="display: none"></div>
       </section>
-      <p id="version" class="sub" style="text-align:center;margin:24px 0 8px">Versión 04/11/2026 12:55</p>
+      <p id="version" class="sub" style="text-align:center;margin:24px 0 8px">Versión 04/11/2026 13:04</p>
     </main>
     <!-- Lector de Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Plano oficial (datos) y aplicación -->
-    <script src="js/plano-oficial.js?v=202611041255"></script>
-    <script src="js/app.js?v=202611041255"></script>
+    <script src="js/plano-oficial.js?v=202611041304"></script>
+    <script src="js/app.js?v=202611041304"></script>
   </body>
 </html>
