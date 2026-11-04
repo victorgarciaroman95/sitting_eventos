@@ -1758,8 +1758,7 @@ async function runSitting(resv) {
       for (let j = i + 1; j < free.length; j++) {
         const a = free[i],
           b = free[j];
-        if (rectGap(a, b) > 0.8) continue;
-        if ([12.5, 32.5].some((w) => (a.cx - w) * (b.cx - w) < 0) && a.cy < 16.6 && b.cy < 16.6) continue; // nunca juntar mesas a los dos lados de un muro en T
+        if (rectGap(a, b) > 0.8) continue; // Las mesas de 8 y 6 a los dos lados de un muro en T se pueden juntar en línea (8 + 6 = 14 personas)
         const c = a.cap + b.cap;
         if (c < u.pax) continue;
         const s2 = (c - u.pax) * 10 + Math.min(a.dist, b.dist);
