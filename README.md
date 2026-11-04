@@ -123,6 +123,6 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 1. `reservas-prueba-1.xlsx`: martes tranquilo, 120 personas.
 2. `reservas-prueba-2.xlsx`: 250 personas con mucho Premium (Premium a VIP sobrantes, mesas compartidas y Premium en mesa General).
 3. `reservas-prueba-3.xlsx`: viernes al límite, 470 personas (anfiteatro completo, sillones y avisos).
-4. `reservas-prueba-4.xlsx`: 300 personas con muchas personas solas, PMR e invitaciones.
+4. `reservas-prueba-4.xlsx`: 300 personas con PMR, invitaciones y 5 personas solas (lo máximo habitual en un día).
 5. `reservas-prueba-5.xlsx`: 400 personas en grupos grandes y reservas con código de grupo.
 - `reservas-parejas.xlsx`: 304 personas, casi todas en parejas (mesas de 8 y de 6 compartidas por parejas).
