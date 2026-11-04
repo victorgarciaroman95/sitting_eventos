@@ -1838,7 +1838,7 @@ async function runSitting(resv) {
             " (" +
             u.pax +
             " pax) va a " +
-            u.where[u.where.length - 1].split(" ")[0] +
+            u.where[u.where.length - 1].split(" · ")[0] +
             ", mesa General más cercana al escenario",
         );
         continue;
