@@ -1764,10 +1764,31 @@ async function runSitting(resv) {
         const s2 = (c - u.pax) * 10 + Math.min(a.dist, b.dist);
         if (!b2 || s2 < b2.sc) b2 = { a, b, sc: s2 };
       }
+    if (b2) b2.run = [b2.a, b2.b];
+    // grupos grandes: 2 o 3 mesas vacías seguidas de la misma fila (mismo tipo, a menos de 1,5 m una de otra), p. ej. 2 mesas de 8 de la pasarela o 3 de la fila 100
+    {
+      const rows = {};
+      free.forEach((t) => {
+        const k = t.type + "|" + (t.w >= t.h ? "h" : "v") + "|" + Math.round(t.cy * 2);
+        (rows[k] = rows[k] || []).push(t);
+      });
+      for (const r of Object.values(rows)) {
+        r.sort((a, b) => a.cx - b.cx);
+        for (let i = 0; i < r.length; i++)
+          for (let k = 2; k <= 3 && i + k <= r.length; k++) {
+            const run = r.slice(i, i + k);
+            if (run.some((t, j) => j && t.x - (run[j - 1].x + run[j - 1].w) > 1.5)) break;
+            const c = run.reduce((a, t) => a + t.cap, 0);
+            if (c < u.pax) continue;
+            const s2 = (c - u.pax) * 10 + Math.min(...run.map((t) => t.dist)) + (k - 2) * 5;
+            if (!b2 || s2 < b2.sc) b2 = { run, sc: s2 };
+            break;
+          }
+      }
+    }
     if (b2) {
-      addOcc(b2.a, u);
-      addOcc(b2.b, u);
-      u.where.push(tLabel(b2.a) + " + " + tLabel(b2.b) + " (mesas juntas)");
+      b2.run.forEach((t) => addOcc(t, u));
+      u.where.push(b2.run.map(tLabel).join(" + ") + " (mesas juntas)");
       return true;
     }
     return false;
