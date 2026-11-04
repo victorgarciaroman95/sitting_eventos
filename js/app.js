@@ -1171,11 +1171,16 @@ function colOrder(t) {
     rev = behindVip(t) ? d1 < d0 : d1 > d0;
   return rev ? idx.reverse() : idx;
 }
+// Mesa compartida: siempre una silla libre entre una reserva y otra (una pareja de sillas vacía entre los tramos). En las mesas de parejas (t.pm) la separación ya la dan las sillas que se quitan.
+// Silla libre entre reservas: es prioridad. Si la sala se llena (GAPRELAX), se quita solo para las reservas que no caben de otra forma (NOGAP mientras se busca su sitio).
+var GAPRELAX = false,
+  NOGAP = false,
+  GAPQUIT = 0;
 function findRun(t, k) {
   if (k > nCols(t)) return null;
   const ord = colOrder(t),
     used = usedCols(t),
-    gap = !t.pm && used.size > 0;
+    gap = !t.pm && used.size > 0 && !NOGAP;
   for (let i = 0; i + k <= ord.length; i++) {
     const r = ord.slice(i, i + k);
     if (!r.every((c) => !used.has(c))) continue;
@@ -1719,13 +1724,22 @@ async function runSitting(resv) {
   function placeOnTables(u, pool, share) {
     // una mesa: la que deja menos sillas vacías y está más cerca del escenario
     let best = null;
-    for (const t of pool) {
-      const cols = fitCols(u, t, share);
-      if (!cols) continue;
-      const waste =
-        (nCols(t) - usedCols(t).size - cols.length) * perCol(t) + (cols.length * perCol(t) - u.pax);
-      const sc = t.dist + 1.5 * (share ? waste : t.cap - u.pax);
-      if (!best || sc < best.sc) best = { t, cols, sc };
+    const scan = () => {
+      for (const t of pool) {
+        const cols = fitCols(u, t, share);
+        if (!cols) continue;
+        const waste =
+          (nCols(t) - usedCols(t).size - cols.length) * perCol(t) + (cols.length * perCol(t) - u.pax);
+        const sc = t.dist + 1.5 * (share ? waste : t.cap - u.pax);
+        if (!best || sc < best.sc) best = { t, cols, sc };
+      }
+    };
+    scan();
+    if (!best && share && GAPRELAX) {
+      NOGAP = true;
+      scan();
+      NOGAP = false;
+      if (best) GAPQUIT++;
     }
     if (best) {
       const sh = occOf(best.t).length > 0;
@@ -2736,9 +2750,7 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
     if (typeof XLSX === "undefined") throw new Error("No se pudo cargar el lector de Excel.");
     const resv = parseExcel(await f.arrayBuffer());
     if (!resv.length) throw new Error("No hay reservas en el archivo.");
-    PAIRLIM = 2;
-    await runSitting(resv);
-    // Si falta sitio (reservas sin ubicar, o grupos General/Premium que han tenido que subir), se repite con 3 parejas por mesa de 8
+    // Si falta sitio (reservas sin ubicar, o grupos General/Premium que han tenido que subir): 1) se quita la silla libre entre reservas solo donde haga falta; 2) si aún falta, 3 parejas por mesa de 8
     {
       const falta = (S) =>
         S.units.filter(
@@ -2749,18 +2761,38 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
               (u.cat === "General" || u.cat === "Premium") &&
               u.where.some((w) => /barra|planta alta/.test(w))),
         ).length;
-      if (falta(SIT)) {
-        const s2 = SIT;
-        PAIRLIM = 3;
+      const run = async (pl, gr) => {
+        PAIRLIM = pl;
+        GAPRELAX = gr;
+        GAPQUIT = 0;
         await runSitting(resv);
-        if (falta(SIT) > falta(s2)) {
-          SIT = s2;
-          PAIRLIM = 2;
-        } else if (SIT.tabs.some((t) => t.pm === 3))
-          SIT.warn.push(
-            "Sala con poco sitio: algunas mesas de 8 compartidas por parejas llevan 3 parejas cara a cara (6 personas).",
-          );
+        SIT.gapQuit = GAPQUIT;
+        SIT.cfg = [pl, gr];
+        GAPRELAX = false;
+        return SIT;
+      };
+      let best = await run(2, false);
+      for (const [pl, gr] of [
+        [2, true],
+        [3, true],
+      ]) {
+        if (!falta(best)) break;
+        const s2 = await run(pl, gr);
+        if (falta(s2) < falta(best)) best = s2;
       }
+      SIT = best;
+      PAIRLIM = best.cfg[0];
+      if (best.gapQuit)
+        SIT.warn.push(
+          "Sala llena: " +
+            best.gapQuit +
+            (best.gapQuit > 1 ? " reservas se han sentado" : " reserva se ha sentado") +
+            " sin la silla libre de separación en mesas compartidas, porque no cabían de otra forma.",
+        );
+      if (SIT.tabs.some((t) => t.pm === 3))
+        SIT.warn.push(
+          "Sala con poco sitio: algunas mesas de 8 compartidas por parejas llevan 3 parejas cara a cara (6 personas).",
+        );
     }
     m.textContent =
       f.name +
