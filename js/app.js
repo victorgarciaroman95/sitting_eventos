@@ -1558,6 +1558,20 @@ async function runSitting(resv) {
     u.name = u.res.map((r) => r.nom).join(" + ");
   });
   const warn = [];
+  // Control de venta: nunca puede haber más reservas VIP que VIP (las de la propiedad y el jefe de sala también ocupan VIP)
+  {
+    const nv = units
+      .filter((u) => u.cat === "VIP" || u.gest === "Propiedad" || u.gest === "Jefe de sala")
+      .reduce((a, u) => a + (u.cat === "VIP" ? Math.max(1, u.pax > 6 ? Math.ceil(u.pax / 4) : 1) : 1), 0);
+    if (nv > vips.length)
+      warn.push(
+        "Este Excel pide " +
+          nv +
+          " VIP y en la sala solo hay " +
+          vips.length +
+          ": hay más VIP vendidos de los que existen. Revisa el Excel (puede ser una versión antigua).",
+      );
+  }
   function seatRun(zoneFilter, u, order) {
     const need = u.pax - u.pmr + 2 * u.pmr;
     const list = seats.filter((s) => zoneFilter(s.zone));
