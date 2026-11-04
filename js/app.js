@@ -1223,9 +1223,19 @@ function seatCol(t, q) {
     f = long ? (q.x - t.x) / t.w : (q.y - t.y) / t.h;
   return Math.max(0, Math.min(n - 1, Math.floor(f * n)));
 }
+// Hueco para u en la mesa t: columnas libres seguidas (si share=false, solo mesas vacías)
+var MANUAL = false;
 function fitCols(u, t, share) {
   const k = colsNeed(u, t);
   if (nCols(t) === 1) return occOf(t).length || t.cap < u.pax ? null : [0];
+  // A mano: se comparte con cualquier reserva si quedan sillas libres seguidas (sin silla de separación ni reglas de categoría)
+  if (MANUAL && occOf(t).length && !t.pm) {
+    NOGAP = true;
+    const r = findRun(t, k);
+    NOGAP = false;
+    return r;
+  }
+  if (MANUAL && t.pm) return u.pax === 2 ? findRun(t, 1) : null;
   if (t.type === "m4u" && occOf(t).length) return null;
   if (pairT(t) && occOf(t).length) {
     const ok = share && u.pax === 2 && occOf(t).every((o) => compat(o.u, u));
@@ -3266,6 +3276,9 @@ function sitMove(e) {
 }
 // ¿Puede ir esta reserva a esta mesa? (VIP solo a VIP, Premium solo a mesas de 8, General a todo menos VIP).
 function okFor(u, t) {
+  return true;
+}
+function okForAuto(u, t) {
   if (u.gest && t.floor !== "p2") return true;
   if (t.type === "sil4") return u.cat === "General" || u.cat === "Show";
   if (t.floor === "p2") return u.cat === "Show";
@@ -3313,6 +3326,14 @@ function rebuild() {
 }
 // Coloca a mano una reserva sin ubicar en una mesa libre.
 function placeUnit(u, dst) {
+  MANUAL = true;
+  try {
+    return placeUnit0(u, dst);
+  } finally {
+    MANUAL = false;
+  }
+}
+function placeUnit0(u, dst) {
   if (!okFor(u, dst)) {
     status("Esa mesa no admite la categoría " + u.cat + ".", "warn");
     return;
@@ -3490,6 +3511,14 @@ function sitUp(e) {
   }
 }
 function moveToTable(mv, dst) {
+  MANUAL = true;
+  try {
+    return moveToTable0(mv, dst);
+  } finally {
+    MANUAL = false;
+  }
+}
+function moveToTable0(mv, dst) {
   const u = mv.unit,
     src = tablesOf(u);
   if (!okFor(u, dst)) {
@@ -3498,7 +3527,7 @@ function moveToTable(mv, dst) {
   }
   const v = dst.unit;
   // mesa con hueco: se comparte (Premium con Premium, General con General o con Premium)
-  if (v && u.cat !== "VIP" && !occOf(dst).some((o) => o.u === u)) {
+  if (v && !occOf(dst).some((o) => o.u === u)) {
     const saved = src.map((t) => ({ t, o: t.occ.slice() }));
     src.forEach((t) => remOcc(t, u));
     const cols = fitCols(u, dst, true);
