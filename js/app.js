@@ -1176,6 +1176,7 @@ function colOrder(t) {
 var GAPRELAX = false,
   NOGAP = false,
   GAPQUIT = 0;
+var PRE4 = 0;
 function findRun(t, k) {
   if (k > nCols(t)) return null;
   const ord = colOrder(t),
@@ -1825,10 +1826,24 @@ async function runSitting(resv) {
       u.gest = "";
     }
   }
+  // PRE4: si hace falta pasar Premium a sillones laterales o VIP libres, se pasan antes reservas de 4 personas (se decide repitiendo el sitting, ver más abajo)
+  {
+    let n4 = PRE4;
+    for (const u of units.filter((u) => u.cat === "Premium" && u.pax === 4 && !u.gest && !u.pmr)) {
+      if (n4 <= 0) break;
+      if (placeOnTables(u, lat, false)) {
+        u.where[u.where.length - 1] += " · Premium";
+        n4--;
+      } else if (placeVip(u)) {
+        u.where[u.where.length - 1] += " · Premium en VIP libre";
+        n4--;
+      }
+    }
+  }
   {
     const pf = [];
     for (const u of units
-      .filter((u) => u.cat === "Premium" && !u.gest && !u.pmr)
+      .filter((u) => u.cat === "Premium" && !u.gest && !u.pmr && !u.where.length)
       .sort((a, b) => b.pax - a.pax)) {
       // Parejas Premium: prioridad en la fila 100; el resto de reservas Premium, primero en las demás mesas Premium (así la fila 100 queda para las parejas)
       const P = mesas.filter(isPrem),
@@ -1843,7 +1858,16 @@ async function runSitting(resv) {
     }
     // si no caben todas en mesas propias, se comparten mesas de 8 entre reservas Premium
     // Premium que no cabe en mesa propia: las reservas de 3 o más van a los VIP que sobran (una por VIP); las de 1–2, o si no hay VIP libre, comparten mesa de 8
-    for (const u of pf) {
+    // Para pasar Premium a un sillón lateral o a un VIP libre, primero las reservas Premium de 4 personas (llenan justo el sillón o el VIP)
+    // Para pasar Premium a un sillón lateral o a un VIP libre, primero las reservas Premium de 4 personas (llenan justo el sillón o el VIP).
+    for (const u of pf.filter((u) => u.pax === 4)) {
+      if (placeOnTables(u, lat, false)) {
+        u.where[u.where.length - 1] += " · Premium";
+        continue;
+      }
+      if (placeVip(u)) u.where[u.where.length - 1] += " · Premium en VIP libre";
+    }
+    for (const u of pf.filter((u) => !u.where.length)) {
       if (placeOnTables(u, lat, false)) {
         u.where[u.where.length - 1] += " · Premium";
         continue;
@@ -2830,6 +2854,29 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
       }
       SIT = best;
       PAIRLIM = best.cfg[0];
+      // Premium en sillones laterales o VIP: mejor reservas de 4. Si han ido allí reservas de otro tamaño y hay de 4 en mesas Premium, se repite pasando antes las de 4 y se queda con el resultado si no es peor
+      {
+        const isLV = (w) => /Sillón lateral|VIP/.test(w);
+        const bad = (S) =>
+          S.units.filter(
+            (u) =>
+              u.cat === "Premium" && (u.note === "Sin ubicar" || u.where.some((w) => /mesa General/.test(w))),
+          ).length + S.warn.filter((w) => /^Premium sin sitio/.test(w)).length;
+        const k = best.units.filter(
+          (u) => u.cat === "Premium" && u.pax !== 4 && u.pax > 1 && u.where.some(isLV),
+        ).length;
+        if (k && best.units.some((u) => u.cat === "Premium" && u.pax === 4 && !u.where.some(isLV))) {
+          const cfg = best.cfg;
+          PRE4 = k;
+          const s2 = await run(cfg[0], cfg[1]);
+          PRE4 = 0;
+          if (falta(s2) <= falta(best) && bad(s2) <= bad(best)) {
+            s2.gapQuit = s2.gapQuit || 0;
+            best = s2;
+            SIT = s2;
+          } else SIT = best;
+        }
+      }
       if (best.gapQuit)
         SIT.warn.push(
           "Sala llena: " +
