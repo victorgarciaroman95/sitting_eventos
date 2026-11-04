@@ -1174,10 +1174,17 @@ function colOrder(t) {
 function findRun(t, k) {
   if (k > nCols(t)) return null;
   const ord = colOrder(t),
-    used = usedCols(t);
+    used = usedCols(t),
+    gap = !t.pm && used.size > 0;
   for (let i = 0; i + k <= ord.length; i++) {
     const r = ord.slice(i, i + k);
-    if (r.every((c) => !used.has(c))) return r;
+    if (!r.every((c) => !used.has(c))) continue;
+    if (gap) {
+      const lo = Math.min(...r),
+        hi = Math.max(...r);
+      if (used.has(lo - 1) || used.has(hi + 1)) continue;
+    }
+    return r;
   }
   return null;
 }
@@ -1691,8 +1698,9 @@ async function runSitting(resv) {
       if (occOf(t).length && !occOf(t).every((o) => compat(o.u, u))) continue;
       const used = usedCols(t);
       const solo = (c) => occOf(t).some((o) => o.u.pax === 1 && o.cols.length === 1 && o.cols[0] === c);
+      const grp = (c) => occOf(t).some((o) => o.cols.includes(c) && !(o.u.pax === 1 && o.cols.length === 1));
       for (const c of colOrder(t)) {
-        if (used.has(c) || (solo(c - 1) && solo(c + 1))) continue;
+        if (used.has(c) || (solo(c - 1) && solo(c + 1)) || grp(c - 1) || grp(c + 1)) continue;
         const sc = t.dist + (occOf(t).length ? 0 : 3);
         if (!best || sc < best.sc) best = { t, c, sc };
         break;
