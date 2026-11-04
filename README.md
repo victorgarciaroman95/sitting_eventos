@@ -20,7 +20,7 @@ sitting_eventos/
 ├── js/app.js              Toda la lógica: editor del plano, sitting automático y dibujo
 └── ejemplos/              Excel de reservas de prueba
     ├── reservas-sala-scala.xlsx   47 reservas de prueba (plantilla con instrucciones)
-    └── reservas-sala-llena.xlsx   90 reservas que llenan toda la sala (plano definitivo)
+    └── reservas-sala-llena.xlsx   509 personas que llenan toda la sala (VIP 42, Premium 124, General 252, Show 91)
 ```
 
 ## Uso diario
@@ -121,7 +121,7 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 ## Excel de prueba (`ejemplos/`)
 
 1. `reservas-prueba-1.xlsx`: martes tranquilo, 120 personas.
-2. `reservas-prueba-2.xlsx`: 250 personas con mucho Premium (Premium a VIP sobrantes, mesas compartidas y Premium en mesa General).
+2. `reservas-prueba-2.xlsx`: 250 personas con las 124 plazas Premium vendidas (mesas Premium llenas y compartidas).
 3. `reservas-prueba-3.xlsx`: viernes al límite, 470 personas (anfiteatro completo, sillones y avisos).
 4. `reservas-prueba-4.xlsx`: 300 personas con PMR, invitaciones y 5 personas solas (lo máximo habitual en un día).
 5. `reservas-prueba-5.xlsx`: 400 personas en grupos grandes y reservas con código de grupo.
