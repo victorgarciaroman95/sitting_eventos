@@ -1,5 +1,5 @@
 /*
- * PLANO OFICIAL DE SALA SCALA (versión 01/11/2026 21:40: mesas de fuera de los muros en T, de 8)
+ * PLANO OFICIAL DE SALA SCALA (versión 05/11/2026 14:55: mesas bis de fuera de los muros en T desplazadas 0,25 m hacia fuera)
  * ----------------------------------------------------
  * Es la distribución de mesas que se carga la primera vez que se abre la
  * aplicación, o cuando se pulsa "Restaurar plano oficial".
@@ -14,7 +14,7 @@
  */
 const PLANO_OFICIAL = {
   // Al cambiar el plano oficial, cambia también esta versión: los navegadores con un plano guardado anterior cargarán el nuevo.
-  version: "2026-11-01-2140",
+  version: "2026-11-05-1455",
   // Planta baja
   base: [
     ["pt", 1.75, 25, "h"],
@@ -54,10 +54,10 @@ const PLANO_OFICIAL = {
     ["m6", 30.75, 11.5, "h"],
     ["m6", 30.75, 13.25, "h"],
     ["m6", 30.75, 15, "h"],
-    ["m4u", 33, 16.75, "h"],
+    ["m4u", 33.25, 16.75, "h"],
     ["m4u", 31, 16.75, "h"],
     ["m4u", 13, 16.75, "h"],
-    ["m4u", 11, 16.75, "h"],
+    ["m4u", 10.75, 16.75, "h"],
     ["m8", 10.13, 13.25, "h"],
     ["m8", 10.13, 11.5, "h"],
     ["m8", 10.13, 15, "h"],
