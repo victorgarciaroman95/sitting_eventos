@@ -211,7 +211,7 @@ button:disabled {
 .popc .x { float: right; border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--muted); }
 .popc a { color: var(--acc); }
 
-/* Botón de bloqueo del sitting */
+/* Botón de bloqueo del seating */
 #sitlock:not(:disabled) { border-color: var(--ok); color: var(--ok); }
 #sitlock.unl { border-color: var(--warn); color: var(--warn); font-weight: 500; }
 

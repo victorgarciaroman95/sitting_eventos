@@ -1,14 +1,14 @@
 /*
- * SITTING SALA SCALA · aplicación
+ * SEATING SALA SCALA · aplicación
  * ===============================
- * Editor del plano de la sala (dos plantas) y sitting automático a partir del Excel de reservas.
+ * Editor del plano de la sala (dos plantas) y seating automático a partir del Excel de reservas.
  *
  * Partes del archivo:
  *   1. Configuración: medidas de la sala, tipos de mesa (T) y dibujo de las zonas fijas.
  *   2. Editor del plano: crear, mover, girar y borrar mesas, zoom y guardado en el navegador.
  *   3. Planta alta: barra del anfiteatro (62 sillas) y escalones.
- *   4. Sitting automático (runSitting): reglas de reparto de reservas.
- *   5. Dibujo del sitting: colores, nombres, iconos ⚠ y 🎂, puntos verdes.
+ *   4. Seating automático (runSitting): reglas de reparto de reservas.
+ *   5. Dibujo del seating: colores, nombres, iconos ⚠ y 🎂, puntos verdes.
  *   6. Mover reservas a mano, bloqueo del plano y copias (exportar/importar).
  *
  * Unidades: todas las posiciones y medidas de las mesas van en METROS. Las funciones X() e Y()
@@ -444,7 +444,7 @@ function render() {
   const s = ts.find((t) => t.id === selId);
   sitOverlay();
   document.getElementById("sel").textContent = SIT
-    ? "Sitting cargado y bloqueado: toca una reserva para ver su ficha. Para mover reservas, pulsa «Sitting bloqueado»."
+    ? "Seating cargado y bloqueado: toca una reserva para ver su ficha. Para mover reservas, pulsa «Seating bloqueado»."
     : s
       ? T[s.type].n +
         (s.r ? " (vertical)" : "") +
@@ -929,7 +929,7 @@ function switchFloor(f) {
   loadFloor(f);
 }
 loadFloor(location.hash === "#planta-alta" ? "p2" : "base");
-/* ===== Sitting automático ===== */
+/* ===== Seating automático ===== */
 const CATC = { VIP: "#2E7D32", Premium: "#8E44AD", General: "#2F7FD8", Show: "#0E9AA7" };
 const PMRC = "#E24B4A",
   INVC = "#FFC800";
@@ -1402,7 +1402,7 @@ function tType(t) {
 function tLabel(t) {
   return t.no != null ? (isFV(t) ? "VIP " : t.type === "vip" ? "Sillón lateral " : "Mesa ") + t.no : t.id;
 }
-// SITTING AUTOMÁTICO: reparte las reservas en mesas y en la barra siguiendo las reglas de Sala Scala.
+// SEATING AUTOMÁTICO: reparte las reservas en mesas y en la barra siguiendo las reglas de Sala Scala.
 // Orden: VIP → Premium → Invitaciones/personal → General → barra del anfiteatro (General y Show).
 async function runSitting(resv) {
   const base = await floorData("base");
@@ -1857,7 +1857,7 @@ async function runSitting(resv) {
       u.gest = "";
     }
   }
-  // PRE4: si hace falta pasar Premium a sillones laterales o VIP libres, se pasan antes reservas de 4 personas (se decide repitiendo el sitting, ver más abajo)
+  // PRE4: si hace falta pasar Premium a sillones laterales o VIP libres, se pasan antes reservas de 4 personas (se decide repitiendo el seating, ver más abajo)
   {
     let n4 = PRE4;
     for (const u of units.filter((u) => u.cat === "Premium" && u.pax === 4 && !u.gest && !u.pmr)) {
@@ -2428,7 +2428,7 @@ function unitInfo(u) {
     (u.pmr ? " · " + u.pmr + " PMR" : "")
   );
 }
-// Dibuja el sitting encima del plano: colores por categoría, nombres, iconos, puntos verdes y números de la barra.
+// Dibuja el seating encima del plano: colores por categoría, nombres, iconos, puntos verdes y números de la barra.
 function sitOverlay() {
   const g = document.getElementById("sitfx");
   if (!g) return;
@@ -2730,7 +2730,7 @@ function showSide() {
     L.length +
     ')</h4><div class="hint">' +
     (L.length
-      ? "Desbloquea el sitting y arrastra cada reserva a una mesa o a la barra del anfiteatro."
+      ? "Desbloquea el seating y arrastra cada reserva a una mesa o a la barra del anfiteatro."
       : "Todas las reservas tienen sitio.") +
     " Para quitar una reserva del plano, arrástrala aquí.</div>" +
     L.map(
@@ -2913,7 +2913,7 @@ document.getElementById("sitfile").addEventListener("change", async (e) => {
       resv.length +
       " reservas, " +
       resv.reduce((a, r) => a + r.pax, 0) +
-      " personas. Las mesas coloreadas son el sitting propuesto; cambia de planta para ver la barra del anfiteatro.";
+      " personas. Las mesas coloreadas son el seating propuesto; cambia de planta para ver la barra del anfiteatro.";
     document.getElementById("sitclear").disabled = false;
     setSitLock(true);
     render();
@@ -3179,10 +3179,10 @@ function toggleLock() {
     LOCKED ? "ok" : "warn",
   );
 }
-// Impide editar mesas si el plano está bloqueado o hay un sitting cargado.
+// Impide editar mesas si el plano está bloqueado o hay un seating cargado.
 function sitLocked() {
   if (SIT) {
-    status("Con el sitting cargado las mesas están bloqueadas. Puedes mover reservas entre mesas.", "warn");
+    status("Con el seating cargado las mesas están bloqueadas. Puedes mover reservas entre mesas.", "warn");
     return true;
   }
   if (LOCKED) {
@@ -3205,7 +3205,7 @@ function tableAt(p) {
       p.y <= t.y + t.h + 0.25,
   );
 }
-// Con sitting cargado: al tocar una mesa ocupada empieza a mover su reserva.
+// Con seating cargado: al tocar una mesa ocupada empieza a mover su reserva.
 function sitDown(t, e) {
   const st = SIT.tabs.find((x) => x.floor === FLOOR && x.key === keyOf(t.type, t.x, t.y));
   if (!st) return;
@@ -3259,14 +3259,14 @@ function sitGhost() {
     pmove.unit.pax,
   );
 }
-// Bloqueo del sitting: al cargar el Excel queda bloqueado (solo se pueden consultar las reservas); hay que desbloquearlo para mover reservas
+// Bloqueo del seating: al cargar el Excel queda bloqueado (solo se pueden consultar las reservas); hay que desbloquearlo para mover reservas
 var SITLOCK = true;
 function setSitLock(v) {
   SITLOCK = v;
   const b = document.getElementById("sitlock");
   if (!b) return;
   b.disabled = !SIT && v;
-  b.textContent = v ? "🔒 Sitting bloqueado" : "🔓 Sitting desbloqueado";
+  b.textContent = v ? "🔒 Seating bloqueado" : "🔓 Seating desbloqueado";
   b.classList.toggle("unl", !v);
 }
 function toggleSitLock() {
@@ -3274,15 +3274,15 @@ function toggleSitLock() {
   setSitLock(!SITLOCK);
   status(
     SITLOCK
-      ? "Sitting bloqueado: toca una reserva para ver su ficha."
-      : "Sitting desbloqueado: ya puedes arrastrar reservas entre mesas. Vuelve a bloquearlo al terminar.",
+      ? "Seating bloqueado: toca una reserva para ver su ficha."
+      : "Seating desbloqueado: ya puedes arrastrar reservas entre mesas. Vuelve a bloquearlo al terminar.",
     SITLOCK ? "ok" : "warn",
   );
 }
 function sitBlocked() {
   if (SITLOCK) {
     status(
-      "El sitting está bloqueado. Pulsa «Sitting bloqueado» para desbloquearlo y mover reservas.",
+      "El seating está bloqueado. Pulsa «Seating bloqueado» para desbloquearlo y mover reservas.",
       "warn",
     );
     return true;
@@ -3676,7 +3676,7 @@ document.addEventListener("pointerup", (e) => {
   }
   sitUp(e);
 });
-// Botón "Quitar sitting": vuelve al plano sin reservas.
+// Botón "Quitar seating": vuelve al plano sin reservas.
 function clearSitting() {
   document.getElementById("sitfname").textContent = "";
   SIT = null;
@@ -3686,7 +3686,7 @@ function clearSitting() {
   document.getElementById("sitlock").disabled = true;
   render();
   showSitting();
-  document.getElementById("sitmsg").textContent = "Sin sitting cargado.";
+  document.getElementById("sitmsg").textContent = "Sin seating cargado.";
   document.getElementById("sitclear").disabled = true;
 }
 

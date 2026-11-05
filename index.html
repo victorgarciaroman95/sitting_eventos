@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Sitting · Sala Scala</title>
-    <link rel="stylesheet" href="css/estilos.css?v=202611051455" />
+    <title>Seating · Sala Scala</title>
+    <link rel="stylesheet" href="css/estilos.css?v=202611052146" />
   </head>
   <body>
     <main>
@@ -66,7 +66,7 @@
       </div>
       <div class="info"><span id="st">Cargando…</span><span id="cnt"></span><span id="sel"></span></div>
       <section id="sit">
-        <h2>Sitting automático</h2>
+        <h2>Seating automático</h2>
         <p class="sub">
           Carga el Excel de reservas del día. El sistema propone dónde se sienta cada reserva según las reglas
           de cada categoría. Los datos solo se leen en este navegador: no se guardan en ningún sitio.
@@ -75,8 +75,8 @@
           <label class="filebtn"
             >Cargar Excel de reservas<input type="file" id="sitfile" accept=".xlsx,.xls" hidden /></label
           >
-          <span id="sitfname" style="font-weight: 600; align-self: center"></span><button id="sitlock" onclick="toggleSitLock()" disabled>🔒 Sitting bloqueado</button
-          ><button id="sitclear" onclick="clearSitting()" disabled>Quitar sitting</button>
+          <span id="sitfname" style="font-weight: 600; align-self: center"></span><button id="sitlock" onclick="toggleSitLock()" disabled>🔒 Seating bloqueado</button
+          ><button id="sitclear" onclick="clearSitting()" disabled>Quitar seating</button>
           <span class="leg"
             ><span class="dot" style="background: #2e7d32"></span>VIP
             <span class="dot" style="background: #8e44ad"></span>Premium
@@ -87,17 +87,17 @@
             · ⚠ alergias o intolerancias · 🎂 cumpleaños · 🥂 servicios adicionales · toca una reserva para ver su ficha</span
           >
         </div>
-        <div id="sitmsg" class="sub">Sin sitting cargado.</div>
+        <div id="sitmsg" class="sub">Sin seating cargado.</div>
         <div id="sitres"></div>
         <!-- Ficha de una reserva (se abre al tocar una mesa, una silla de la barra o una fila de la lista) -->
         <div id="pop" class="pop" style="display: none"></div>
       </section>
-      <p id="version" class="sub" style="text-align:center;margin:24px 0 8px">Versión 05/11/2026 14:55</p>
+      <p id="version" class="sub" style="text-align:center;margin:24px 0 8px">Versión 05/11/2026 21:46</p>
     </main>
     <!-- Lector de Excel (SheetJS) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <!-- Plano oficial (datos) y aplicación -->
-    <script src="js/plano-oficial.js?v=202611051455"></script>
-    <script src="js/app.js?v=202611051455"></script>
+    <script src="js/plano-oficial.js?v=202611052146"></script>
+    <script src="js/app.js?v=202611052146"></script>
   </body>
 </html>

@@ -1,6 +1,6 @@
-# Sitting Sala Scala
+# Seating Sala Scala
 
-Aplicación web para organizar el sitting de Sala Scala (dinner show): plano editable de la sala en dos plantas y reparto automático de las reservas del día a partir de un Excel.
+Aplicación web para organizar el seating de Sala Scala (dinner show): plano editable de la sala en dos plantas y reparto automático de las reservas del día a partir de un Excel.
 
 ## Cómo abrirla
 
@@ -17,7 +17,7 @@ sitting_eventos/
 ├── index.html             Página principal (botones, pestañas y zonas de la pantalla)
 ├── css/estilos.css        Colores y aspecto
 ├── js/plano-oficial.js    Distribución oficial de mesas de las dos plantas (datos)
-├── js/app.js              Toda la lógica: editor del plano, sitting automático y dibujo
+├── js/app.js              Toda la lógica: editor del plano, seating automático y dibujo
 └── ejemplos/              Excel de reservas de prueba
     ├── reservas-sala-scala.xlsx   47 reservas de prueba (plantilla con instrucciones)
     └── reservas-sala-llena.xlsx   467 personas: sala llena a la venta (VIP 42, Premium 124, General 252, Show 49 + PMR)
@@ -26,7 +26,7 @@ sitting_eventos/
 ## Uso diario
 
 1. **Plano:** arranca siempre bloqueado. Pulsa «Plano bloqueado» para desbloquearlo si necesitas mover, añadir, girar o borrar mesas, y vuelve a bloquearlo al terminar.
-2. **Sitting:** en «Sitting automático», pulsa «Cargar Excel de reservas» y elige el Excel del día.
+2. **Seating:** en «Seating automático», pulsa «Cargar Excel de reservas» y elige el Excel del día.
    - Las mesas se colorean por categoría: VIP verde, Premium morado, General azul y Show turquesa (amarillo, naranja y rojo quedan para marcas: PMR, invitaciones, alergias y cumpleaños).
    - Las reservas con PMR llevan contorno rojo. ⚠ marca alergias o intolerancias y 🎂 los cumpleaños.
    - Los puntos verdes indican dónde se sienta cada persona.
@@ -62,7 +62,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 
 `ejemplos/reservas-sala-scala.xlsx` sirve de plantilla: borra las filas de prueba y añade las reservas reales.
 
-## Reglas del sitting (resumen)
+## Reglas del seating (resumen)
 
 - **Orden de ubicación:** VIP → Premium → invitaciones y personal → General → barra del anfiteatro.
 - **VIP:** solo en los 15 VIP, sin compartir. Los grupos de más de 4 ocupan VIP pegados. En los laterales se llenan primero los más cercanos a los VIP centrales.
@@ -85,7 +85,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 - **Personas solas (General):** mesa de 2 libre de planta baja → anfiteatro (siempre con silla libre entre personas solas) → compartir mesa de 4, 6 u 8 en diagonal (nunca cara a cara ni hombro con hombro). Dos personas solas nunca comparten mesa de 2.
 - **Mesas usadas por un lado:** el botón «Un lado / dos lados» funciona con las mesas de 4, 6 y 8 (con el plano desbloqueado). Usadas por un lado tienen 2, 3 y 4 plazas, solo en el lado que mira al escenario, y se ven con borde discontinuo. Una mesa de 8 usada por un lado sigue siendo mesa Premium; la mesa de 4 usada por un lado es la «mesa de 2».
 - **Números de mesa:** con el Excel cargado, el plano muestra solo los números de mesa, no los nombres. VIP 1–9; Premium frente a la pasarela 34, 33, 32, 31, 41, 42, 43, 44; lados de la pasarela 36-35 y 46-45; mesas de 8 por fuera de las T 23–21 y 56–54; mesas de 6 por dentro de las T 26–24 y 53–51; mesas de 2 al final de las T 21 bis, 24 bis, 51 bis y 54 bis; sillones laterales 18–16 y 63–61; detrás de los sillones 15–11 y 67–65; filas desde la 101 y la 201; pasillo de las 300 desde la 301; barra desde la 501. La planta alta lleva código provisional (A…, S…). Se cambia en `numerar()` y `numZonas()` de `js/app.js`.
-- **Sitting bloqueado:** al cargar el Excel el sitting queda bloqueado (solo se consultan las fichas). Para mover reservas hay que pulsar «Sitting bloqueado» y volver a bloquearlo al terminar.
+- **Seating bloqueado:** al cargar el Excel el seating queda bloqueado (solo se consultan las fichas). Para mover reservas hay que pulsar «Seating bloqueado» y volver a bloquearlo al terminar.
 - **Ficha de la reserva:** al tocar una mesa, una silla de la barra o una fila de la lista se abre una ventana con todos los datos: nº de reserva, categoría, personas y menús, invitación y quién la gestiona, alergias concretas (por persona si son varias reservas juntas), cumpleaños, PMR, ubicación, con quién comparte mesa, teléfono o email (se puede tocar para llamar o escribir), código de grupo y observaciones.
 - **Invitaciones:** contorno amarillo en el plano (columna «Invitación / personal» o reservas gestionadas). El rojo sigue siendo PMR.
 - **Reservas gestionadas (columna «Reserva gestionada por»):** se colocan antes que nadie. Propiedad (familia Angulo): los 3 VIP centrales. Jefe de sala: las mejores mesas de toda la sala (VIP, empezando por los centrales si la propiedad no los usa; después mesas de 8 y mesas de dentro de los VIP). Regidor: sus mesas asignadas (`REGIDOR_MESAS` en `js/app.js`, pendiente de definir) → VIP vacíos → mesas General de dentro de los VIP. Si no hay reservas de la propiedad o del regidor, sus mesas se usan de forma normal.
@@ -98,7 +98,7 @@ Una fila por reserva, en una hoja con estas columnas (los nombres deben coincidi
 - **Parejas en mesas de 6 compartidas:** se quitan las 2 sillas del medio y van 2 parejas cara a cara, una en cada extremo. En las filas 100 y 200 una pareja sola también va cara a cara.
 - **Dentro de cada mesa:** la gente se sienta hombro con hombro en el lado con visión al escenario, y solo cuando ese lado se llena se usa el de enfrente (en mesas compartidas, cada reserva en su tramo). En las mesas de delante de los VIP (centrales y laterales) se empieza por los asientos más lejanos al escenario (pegados al escenario hay que forzar el cuello); en las mesas de detrás de los VIP y en las de la planta alta, por los más cercanos al escenario.
 
-Las reglas completas, con lo pendiente de confirmar, están en los documentos del proyecto de Claude: «entradas-y-reglas-sitting» y «mapa-sala-scala».
+Las reglas completas, con lo pendiente de confirmar, están en los documentos del proyecto de Claude: «entradas-y-reglas-seating» y «mapa-sala-scala».
 
 ## Dónde cambiar cosas en el código
 
@@ -108,7 +108,7 @@ Las reglas completas, con lo pendiente de confirmar, están en los documentos de
 | Medidas o plazas de un tipo de mesa | `js/app.js`, objeto `T` (busca «Tipos de mesa») |
 | Escenario, pasarela, pasillos y muros | `js/app.js`, llamadas a `zone(...)` y `wall(...)` |
 | Número de sillas de la barra | `js/app.js`, constante `BARRA_SILLAS` (ahora 50) |
-| Reglas del sitting | `js/app.js`, función `runSitting` (cada paso está comentado) |
+| Reglas del seating | `js/app.js`, función `runSitting` (cada paso está comentado) |
 | Colores de las categorías | `js/app.js`, constante `CATC` |
 
 ## Pendiente
