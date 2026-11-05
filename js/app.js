@@ -1194,6 +1194,27 @@ function findRun(t, k) {
   }
   return null;
 }
+function spreadOcc(t) {
+  const o = occOf(t);
+  if (t.pm || o.length < 2 || o.some((x) => !x.cols || x.cols.length !== new Set(x.cols).size)) return;
+  const n = nCols(t);
+  if (n < 3) return;
+  const s = o.slice().sort((a, b) => Math.min(...a.cols) - Math.min(...b.cols));
+  const used = s.reduce((a, x) => a + x.cols.length, 0),
+    free = n - used,
+    g = s.length - 1;
+  if (free < 1) return;
+  const base = Math.floor(free / g),
+    ex = free % g;
+  let pos = 0;
+  s.forEach((x, i) => {
+    const L = x.cols.length,
+      c = [...Array(L).keys()].map((k) => pos + k);
+    x.cols = c;
+    pos += L + (i < g ? base + (i < ex ? 1 : 0) : 0);
+  });
+  syncT(t);
+}
 function addOcc(t, u, cols) {
   if (cols && cols.pm && !t.pm) {
     t.pm = cols.pm;
@@ -2330,6 +2351,7 @@ async function runSitting(resv) {
   tabs.forEach((t) => {
     if (occOf(t).length) tmap[t.key] = t;
   });
+  tabs.forEach(spreadOcc);
   SIT = { units, warn, tmap, seats, tabs, vipBlocks: blocks };
 }
 // ¿Alguna persona de la reserva tiene alergias o intolerancias?
