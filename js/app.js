@@ -181,7 +181,7 @@ function wall(x, y, w, h) {
 }
 [12.5, 32.5].forEach((cx) => {
   wall(cx - 0.1, 10, 0.2, 6.75);
-  wall(cx < 22.5 ? cx - 2.5 : cx - 1.5, 16.55, 4, 0.2);
+  wall(cx < 22.5 ? cx - 2.5 : cx - 1.75, 16.55, 4.25, 0.2);
 });
 // Añade una mesa (o elemento) a la lista del plano actual.
 function mk(type, x, y, r) {
